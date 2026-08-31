@@ -19,7 +19,7 @@ def main():
         temperature=0.6,
         top_p=1.0,
         max_output_tokens=8192,
-        sleep=4.0
+        sleep=0.0
     )
 
 if __name__ == "__main__":
