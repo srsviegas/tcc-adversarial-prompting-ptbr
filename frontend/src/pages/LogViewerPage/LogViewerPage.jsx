@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Box, Stack, Typography, Alert, CircularProgress } from '@mui/material';
+import { Box, Stack, Typography, Alert, CircularProgress, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTable, faFlask } from '@fortawesome/free-solid-svg-icons';
 import { useLogDirectory } from '../../hooks/useLogDirectory';
 import { LogDirectorySelector } from './components/LogDirectorySelector';
 import { LogFileSelect, ALL_LOGS_OPTION } from './components/LogFileSelect';
@@ -8,6 +10,7 @@ import { ColumnSelectorButton } from './components/ColumnSelectorButton';
 import { ColumnSelectorModal } from './components/ColumnSelectorModal';
 import { buildAllDataColumns } from './utils/columnUtils';
 import { useColumnVisibility } from './hooks/useColumnVisibility';
+import { TestCaseAnalysisView } from './components/TestCaseAnalysisView';
 
 export default function LogViewerPage() {
     const { directoryHandle, availableFiles, error, selectDirectory, refreshDirectory, getFileContent } = useLogDirectory();
@@ -16,6 +19,7 @@ export default function LogViewerPage() {
     const [loading, setLoading] = useState(false);
     const [parseError, setParseError] = useState(null);
     const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+    const [activeView, setActiveView] = useState('raw');
 
     const loadData = async (fileToLoad, filesList = availableFiles) => {
         if (!fileToLoad || !filesList || filesList.length === 0) {
@@ -130,6 +134,49 @@ export default function LogViewerPage() {
                 <Typography variant="h5" component="h1" fontWeight={700} color="#0f172a" letterSpacing="-0.02em">
                     Log Viewer
                 </Typography>
+
+                {selectedFile && logData.length > 0 && (
+                    <ToggleButtonGroup
+                        value={activeView}
+                        exclusive
+                        onChange={(e, val) => { if (val) setActiveView(val); }}
+                        size="small"
+                        sx={{
+                            bgcolor: '#f1f5f9',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 2,
+                            p: 0.375,
+                            '& .MuiToggleButton-root': {
+                                border: 'none',
+                                borderRadius: '6px !important',
+                                px: 2,
+                                py: 0.625,
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                color: '#64748b',
+                                textTransform: 'none',
+                                transition: 'all 0.15s ease',
+                                '&.Mui-selected': {
+                                    bgcolor: '#ffffff',
+                                    color: '#0f172a',
+                                    fontWeight: 600,
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                                    '&:hover': { bgcolor: '#ffffff' },
+                                },
+                                '&:hover': { bgcolor: '#e2e8f0' },
+                            },
+                        }}
+                    >
+                        <ToggleButton value="raw">
+                            <FontAwesomeIcon icon={faTable} style={{ fontSize: '0.75rem', marginRight: 6 }} />
+                            Raw Logs
+                        </ToggleButton>
+                        <ToggleButton value="testcases">
+                            <FontAwesomeIcon icon={faFlask} style={{ fontSize: '0.75rem', marginRight: 6 }} />
+                            Test Cases
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+                )}
             </Stack>
 
             {(error || parseError) && (
@@ -146,7 +193,7 @@ export default function LogViewerPage() {
 
                 {directoryHandle && (
                     <Stack direction="row" alignItems="center" spacing={1.5}>
-                        {selectedFile && logData.length > 0 && (
+                        {selectedFile && logData.length > 0 && activeView === 'raw' && (
                             <ColumnSelectorButton
                                 onClick={() => setIsColumnModalOpen(true)}
                                 visibleCount={visibleCount}
@@ -183,11 +230,15 @@ export default function LogViewerPage() {
                 </Stack>
             ) : (
                 selectedFile && (
-                    <LogDataGrid
-                        data={logData}
-                        columnVisibilityModel={columnVisibilityModel}
-                        onColumnVisibilityModelChange={setColumnVisibilityModel}
-                    />
+                    activeView === 'raw' ? (
+                        <LogDataGrid
+                            data={logData}
+                            columnVisibilityModel={columnVisibilityModel}
+                            onColumnVisibilityModelChange={setColumnVisibilityModel}
+                        />
+                    ) : (
+                        <TestCaseAnalysisView data={logData} />
+                    )
                 )
             )}
         </Box>
