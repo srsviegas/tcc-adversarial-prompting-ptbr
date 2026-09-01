@@ -2,7 +2,7 @@
   "name": "tcc-adversarial-prompting-ptbr",
   "private": true,
   "version": "1.0.0",
-  "description": "TCC Adversarial Prompting PT-BR Benchmark and UI",
+  "description": "Adversarial Prompting Dashboard UI",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",

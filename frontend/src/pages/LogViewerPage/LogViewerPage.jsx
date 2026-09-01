@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Stack, Typography, Alert, CircularProgress } from '@mui/material';
 import { useLogDirectory } from '../../hooks/useLogDirectory';
 import { LogDirectorySelector } from './components/LogDirectorySelector';
-import { LogFileSelect } from './components/LogFileSelect';
+import { LogFileSelect, ALL_LOGS_OPTION } from './components/LogFileSelect';
 import { LogDataGrid } from './components/LogDataGrid';
 import { ColumnSelectorButton } from './components/ColumnSelectorButton';
 import { ColumnSelectorModal } from './components/ColumnSelectorModal';
@@ -17,52 +17,88 @@ export default function LogViewerPage() {
     const [parseError, setParseError] = useState(null);
     const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
 
-    const loadData = async (fileToLoad) => {
-        if (!fileToLoad) {
+    const loadData = async (fileToLoad, filesList = availableFiles) => {
+        if (!fileToLoad || !filesList || filesList.length === 0) {
             setLogData([]);
             return;
         }
         setLoading(true);
         setParseError(null);
 
-        const content = await getFileContent(fileToLoad);
-        if (content) {
-            try {
-                const lines = content.split('\n').filter(line => line.trim() !== '');
-                const parsed = lines.map((line, index) => {
-                    const obj = JSON.parse(line);
-                    if (obj.id === undefined) {
-                        obj.id = index;
+        try {
+            if (fileToLoad === ALL_LOGS_OPTION) {
+                const fileResults = await Promise.all(
+                    filesList.map(async (fileName) => {
+                        const text = await getFileContent(fileName);
+                        return { fileName, text };
+                    })
+                );
+
+                let globalIndex = 0;
+                const allRows = [];
+                for (const { fileName, text } of fileResults) {
+                    if (!text) continue;
+                    const lines = text.split('\n').filter((line) => line.trim() !== '');
+                    for (const line of lines) {
+                        try {
+                            const obj = JSON.parse(line);
+                            obj.id = globalIndex++;
+                            allRows.push(obj);
+                        } catch (err) {
+                            throw new Error(`Failed to parse line in ${fileName}: ${err.message}`);
+                        }
                     }
-                    return obj;
-                });
-                setLogData(parsed);
-            } catch (err) {
-                setParseError('Failed to parse JSONL: ' + err.message);
-                setLogData([]);
+                }
+                setLogData(allRows);
+            } else {
+                const content = await getFileContent(fileToLoad);
+                if (content) {
+                    const lines = content.split('\n').filter((line) => line.trim() !== '');
+                    const parsed = lines.map((line, index) => {
+                        const obj = JSON.parse(line);
+                        if (obj.id === undefined) {
+                            obj.id = index;
+                        }
+                        return obj;
+                    });
+                    setLogData(parsed);
+                } else {
+                    setLogData([]);
+                }
             }
+        } catch (err) {
+            setParseError(err.message || 'Failed to parse JSONL');
+            setLogData([]);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
         if (availableFiles && availableFiles.length > 0) {
-            if (!selectedFile || !availableFiles.includes(selectedFile)) {
-                setSelectedFile(availableFiles[0]);
-            }
+            setSelectedFile((prev) => {
+                if (prev === ALL_LOGS_OPTION || availableFiles.includes(prev)) {
+                    return prev;
+                }
+                return ALL_LOGS_OPTION;
+            });
         } else {
             setSelectedFile('');
         }
     }, [availableFiles]);
 
     useEffect(() => {
-        loadData(selectedFile);
-    }, [selectedFile, getFileContent]);
+        if (selectedFile) {
+            loadData(selectedFile, availableFiles);
+        } else {
+            setLogData([]);
+        }
+    }, [selectedFile, availableFiles, getFileContent]);
 
     const handleRefresh = async () => {
         await refreshDirectory();
         if (selectedFile) {
-            await loadData(selectedFile);
+            await loadData(selectedFile, availableFiles);
         }
     };
 

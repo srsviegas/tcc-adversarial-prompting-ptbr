@@ -1,7 +1,9 @@
 import React from 'react';
-import { FormControl, InputLabel, Select, MenuItem, Typography, Stack, IconButton, Tooltip, Button } from '@mui/material';
+import { FormControl, InputLabel, Select, MenuItem, Typography, Stack, IconButton, Tooltip, Button, Divider } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faRotate } from '@fortawesome/free-solid-svg-icons';
+import { faRotate, faLayerGroup } from '@fortawesome/free-solid-svg-icons';
+
+export const ALL_LOGS_OPTION = '__ALL_LOGS__';
 
 export function LogFileSelect({ availableFiles, selectedFile, onFileSelect, onRefresh, isRefreshing }) {
     if (!availableFiles || availableFiles.length === 0) {
@@ -31,6 +33,15 @@ export function LogFileSelect({ availableFiles, selectedFile, onFileSelect, onRe
                     onChange={(e) => onFileSelect(e.target.value)}
                     borderRadius={1.5}
                 >
+                    <MenuItem value={ALL_LOGS_OPTION}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                            <FontAwesomeIcon icon={faLayerGroup} style={{ fontSize: '0.85rem', color: '#1e293b' }} />
+                            <Typography variant="inherit" fontWeight={600}>
+                                All Log Files ({availableFiles.length})
+                            </Typography>
+                        </Stack>
+                    </MenuItem>
+                    <Divider sx={{ my: 0.5 }} />
                     {availableFiles.map((file) => (
                         <MenuItem key={file} value={file}>
                             {file}
@@ -51,3 +62,4 @@ export function LogFileSelect({ availableFiles, selectedFile, onFileSelect, onRe
         </Stack>
     );
 }
+
