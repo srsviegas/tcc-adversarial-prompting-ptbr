@@ -30,7 +30,7 @@ def get_environment_info(provider: str):
     except Exception:
         pass
 
-    framework = "google-genai" if provider == "gemini" else "transformers"
+    framework = "google-genai" if provider == "gemini" else "llama-cpp-python"
 
     return {
         "execution_type": "api" if provider == "gemini" else "local",
@@ -54,8 +54,13 @@ def run_benchmark(
     api_key: Optional[Union[str, List[str]]] = None,
     api_keys: Optional[Union[str, List[str]]] = None
 ):
+    if provider == "local" and model == "gemini-3.5-flash-lite":
+        model = "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    model_short_name = Path(model).name if ("/" in model or "\\" in model or ":" in model) else model
+    model_short_name = model_short_name.replace(":", "_").replace("/", "_").replace("\\", "_")
+
     ui = BenchmarkUI()
-    run_id = f"{dataset_type}_eval_{model}_{provider}_v1"
+    run_id = f"{dataset_type}_eval_{model_short_name}_{provider}_v1"
     env_info = get_environment_info(provider)
 
     key_rotator = None
@@ -69,10 +74,9 @@ def run_benchmark(
     adapter = get_adapter(dataset_type)
     df = adapter.format_data(df)
 
-    log_filename = f"{provider}_{model}_{dataset_type}_eval.jsonl".replace("/", "_")
+    log_filename = f"{provider}_{model_short_name}_{dataset_type}_eval.jsonl"
     logger = BenchmarkLogger(log_filename)
 
-    # Compute total planned executions
     total_executions = sum(len(adapter.get_tests(row)) * iterations for _, row in df.iterrows())
     checkpoint_count = len(logger.processed_keys)
 
