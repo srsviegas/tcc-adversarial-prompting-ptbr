@@ -132,33 +132,44 @@ def run_benchmark(
 
                         if result["error_log"]["failed"]:
                             retry_count += 1
-                            error_msg = str(result["error_log"]["error_message"]).lower()
+                            raw_err_msg = str(result["error_log"]["error_message"]).strip()
+                            error_msg = raw_err_msg.lower()
+                            masked = KeyRotator.mask_key(current_api_key)
 
-                            # Fatal quota exhaustion for current key
-                            if "quota" in error_msg and ("exhausted" in error_msg or "daily" in error_msg):
+                            # Fatal daily quota exhaustion (RPD) - only evict if explicitly a daily limit
+                            is_daily_quota = (
+                                "daily" in error_msg
+                                or "per day" in error_msg
+                                or "per_day" in error_msg
+                                or "day limit" in error_msg
+                            ) and ("quota" in error_msg or "limit" in error_msg or "429" in error_msg or "exhausted" in error_msg)
+
+                            if is_daily_quota:
                                 if key_rotator and key_rotator.is_multi_key:
-                                    masked = KeyRotator.mask_key(current_api_key)
                                     has_remaining = key_rotator.mark_exhausted(current_api_key)
                                     if not has_remaining:
+                                        ui.log_error(f"Key {masked} daily quota exhausted [{raw_err_msg}]. No keys remaining in pool.")
                                         ui.log_quota_exhausted()
                                         sys.exit(0)
-                                    ui.log_warning(f"Key {masked} daily quota exhausted. Evicted from pool ({key_rotator.total_keys} keys remaining). Retrying with next key...")
+                                    ui.log_warning(f"Key {masked} daily quota exhausted [{raw_err_msg}]. Evicted from pool ({key_rotator.total_keys} keys remaining). Retrying with next key...")
                                     current_api_key = key_rotator.get_next_key()
                                     retry_count = 0
                                     continue
                                 else:
+                                    ui.log_error(f"Key {masked} daily quota exhausted [{raw_err_msg}].")
                                     ui.log_quota_exhausted()
                                     sys.exit(0)
 
                             if retry_count < max_retries:
-                                if "429" in error_msg or "too many requests" in error_msg:
+                                if "429" in error_msg or "too many requests" in error_msg or "resource_exhausted" in error_msg or "quota" in error_msg:
                                     if key_rotator and key_rotator.is_multi_key:
                                         current_api_key = key_rotator.get_next_key()
+                                        next_masked = KeyRotator.mask_key(current_api_key)
                                         wait_time = min(2 * retry_count, 30)
-                                        ui.log_warning(f"Rate limit (429). Rotated to next key. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
+                                        ui.log_warning(f"Rate limit (429/RPM) on key {masked} [{raw_err_msg[:80]}...]. Rotated to next key ({next_masked}). Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                                     else:
                                         wait_time = min(30 * retry_count, 120)
-                                        ui.log_warning(f"Rate limit (429). Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
+                                        ui.log_warning(f"Rate limit (429/RPM) on key {masked} [{raw_err_msg[:80]}...]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                                     time.sleep(wait_time)
                                 elif "503" in error_msg or "unavailable" in error_msg or "high demand" in error_msg or "overloaded" in error_msg:
                                     wait_time = 5 * (2 ** retry_count)
@@ -166,11 +177,11 @@ def run_benchmark(
                                     time.sleep(wait_time)
                                 else:
                                     wait_time = 3 * retry_count
-                                    ui.log_warning(f"Generation error ({error_msg[:60]}). Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
+                                    ui.log_warning(f"Generation error [{raw_err_msg[:80]}]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                                     time.sleep(wait_time)
                                 continue
                             else:
-                                ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) failed after {max_retries} attempts: {error_msg[:100]}")
+                                ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) failed after {max_retries} attempts: {raw_err_msg[:120]}")
                                 break
 
                         success = True
