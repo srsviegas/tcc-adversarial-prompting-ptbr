@@ -1,0 +1,40 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "sample_rounds": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "bad_q": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "ori_output": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "ss_category": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "ss_prompt": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "jb_output": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "bad_q_pt": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "ss_prompt_pt": {
+      "dtype": "large_string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}

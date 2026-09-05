@@ -140,7 +140,6 @@ def run_benchmark(
                             error_msg = raw_err_msg.lower()
                             masked = KeyRotator.mask_key(current_api_key)
 
-                            # Fatal daily quota exhaustion (RPD) - only evict if explicitly a daily limit
                             is_daily_quota = (
                                 "daily" in error_msg
                                 or "per day" in error_msg
