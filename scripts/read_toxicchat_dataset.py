@@ -15,6 +15,8 @@ console = Console()
 
 project_root = Path(__file__).resolve().parent.parent
 file = project_root / "dataset" / "toxicchat_pt_dataset" / "toxicchat_pt_train.parquet"
+if not file.exists():
+    file = project_root / "dataset" / "toxicchat_pt_dataset" / "checkpoint_train.parquet"
 
 
 def parse_args():
@@ -56,7 +58,7 @@ def main():
 
     row = df.iloc[row_idx]
 
-    console.print(f"\n[bold #cccccc]Dataset:[/] [dim]toxicchat_pt_train.parquet[/dim]  |  [bold #cccccc]Displaying Row:[/] [bold cyan]#{row_idx}[/bold cyan] [dim](of {total_rows:,} total)[/dim]\n")
+    console.print(f"\n[bold #cccccc]Dataset:[/] [dim]{file.name}[/dim]  |  [bold #cccccc]Displaying Row:[/] [bold cyan]#{row_idx}[/bold cyan] [dim](of {total_rows:,} total)[/dim]\n")
 
     console.print(Panel(f"[dim]{row.get('conv_id', '')}[/dim]", title="[bold white on blue] CONV_ID [/]", expand=False))
 
