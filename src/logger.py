@@ -1,10 +1,12 @@
 import json
 import os
+import threading
 from pathlib import Path
 
 class BenchmarkLogger:
 
     def __init__(self, log_filename: str):
+        self._lock = threading.Lock()
         self.log_dir = Path(__file__).parent.parent / "logs"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
@@ -59,7 +61,8 @@ class BenchmarkLogger:
 
     def is_already_processed(self, prompt_id: str, model: str, lang: str, style: str, iteration: int) -> bool:
         key = self._get_unique_key(prompt_id, model, lang, style, iteration)
-        return key in self.processed_keys
+        with self._lock:
+            return key in self.processed_keys
 
 
     def _json_serializable_default(self, obj):
@@ -76,17 +79,20 @@ class BenchmarkLogger:
         return str(obj)
 
     def log_result(self, record: dict):
-        with open(self.log_filepath, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False, default=self._json_serializable_default) + "\n")
-            f.flush()
-            os.fsync(f.fileno())
-        
+        line_to_write = json.dumps(record, ensure_ascii=False, default=self._json_serializable_default) + "\n"
         is_failed = record.get("error_log", {}).get("failed", False)
-        if not is_failed:
-            pid = record["dataset_metadata"]["original_row_index"]
-            mname = record["model_config"]["model_name"]
-            lang = record["inputs"]["prompt_language"]
-            style = record["inputs"]["attack_style"]
-            iteration = record["run_metadata"]["iteration"]
+
+        with self._lock:
+            with open(self.log_filepath, "a", encoding="utf-8") as f:
+                f.write(line_to_write)
+                f.flush()
+                os.fsync(f.fileno())
             
-            self.processed_keys.add(self._get_unique_key(pid, mname, lang, style, iteration))
+            if not is_failed:
+                pid = record["dataset_metadata"]["original_row_index"]
+                mname = record["model_config"]["model_name"]
+                lang = record["inputs"]["prompt_language"]
+                style = record["inputs"]["attack_style"]
+                iteration = record["run_metadata"]["iteration"]
+                
+                self.processed_keys.add(self._get_unique_key(pid, mname, lang, style, iteration))

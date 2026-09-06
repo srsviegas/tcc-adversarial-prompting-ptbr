@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import threading
 from typing import List, Optional, Union
 
 
@@ -16,6 +17,7 @@ class KeyRotator:
         env_var_name: str = "GEMINI_API_KEYS",
         fallback_env_var: str = "GEMINI_API_KEY",
     ):
+        self._lock = threading.Lock()
         self.env_var_name = env_var_name
         self.fallback_env_var = fallback_env_var
         self._keys: List[str] = self._resolve_keys(keys)
@@ -77,47 +79,52 @@ class KeyRotator:
     @property
     def total_keys(self) -> int:
         """Returns the total number of currently available keys."""
-        return len(self._keys)
+        with self._lock:
+            return len(self._keys)
 
     @property
     def is_multi_key(self) -> bool:
         """Returns True if there are multiple keys in rotation."""
-        return len(self._keys) > 1
+        with self._lock:
+            return len(self._keys) > 1
 
     def get_next_key(self) -> Optional[str]:
         """
         Retrieves the next key in the round-robin cycle.
         Returns None if no keys are available.
         """
-        if not self._keys:
-            return None
+        with self._lock:
+            if not self._keys:
+                return None
 
-        key = self._keys[self._current_idx % len(self._keys)]
-        self._current_idx = (self._current_idx + 1) % len(self._keys)
-        return key
+            key = self._keys[self._current_idx % len(self._keys)]
+            self._current_idx = (self._current_idx + 1) % len(self._keys)
+            return key
 
     def peek_current_key(self) -> Optional[str]:
         """Returns the current key without advancing the round-robin pointer."""
-        if not self._keys:
-            return None
-        return self._keys[self._current_idx % len(self._keys)]
+        with self._lock:
+            if not self._keys:
+                return None
+            return self._keys[self._current_idx % len(self._keys)]
 
     def mark_exhausted(self, key: str) -> bool:
         """
         Removes an exhausted key from the active pool.
         Returns True if active keys remain, False if the pool is now empty.
         """
-        if key in self._keys:
-            idx = self._keys.index(key)
-            self._keys.remove(key)
-            if self._keys:
-                if idx < self._current_idx:
-                    self._current_idx -= 1
-                self._current_idx = self._current_idx % len(self._keys)
-            else:
-                self._current_idx = 0
+        with self._lock:
+            if key in self._keys:
+                idx = self._keys.index(key)
+                self._keys.remove(key)
+                if self._keys:
+                    if idx < self._current_idx:
+                        self._current_idx -= 1
+                    self._current_idx = self._current_idx % len(self._keys)
+                else:
+                    self._current_idx = 0
 
-        return len(self._keys) > 0
+            return len(self._keys) > 0
 
     @staticmethod
     def mask_key(key: Optional[str]) -> str:

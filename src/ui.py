@@ -1,4 +1,5 @@
 import time
+import threading
 from collections import deque
 from typing import Optional
 from rich.console import Console, Group
@@ -24,6 +25,7 @@ class BenchmarkUI:
     """
 
     def __init__(self, console: Optional[Console] = None, max_history: int = 10):
+        self._lock = threading.Lock()
         self.console = console or Console()
         self.max_history = max_history
         self.history = deque(maxlen=max_history)
@@ -55,6 +57,7 @@ class BenchmarkUI:
         top_p: float,
         total_executions: int,
         checkpoint_count: int,
+        workers: int = 1,
     ):
         """Displays a minimalist header card with run details and checkpoint status."""
         table = Table.grid(padding=(0, 2))
@@ -69,6 +72,8 @@ class BenchmarkUI:
             "Config:",
             f"temp={temperature}, top_p={top_p}, iters={iterations} [dim](Total Tasks: {total_executions:,})[/dim]",
         )
+        mode_text = f"[bold green]{workers}[/bold green] [dim](Parallel)[/dim]" if workers > 1 else "1 [dim](Sequential)[/dim]"
+        table.add_row("Workers:", mode_text)
 
         if checkpoint_count > 0:
             state_text = (
@@ -173,56 +178,61 @@ class BenchmarkUI:
         status_tag = "[bold red]FAIL[/bold red]" if failed else "[dim green] OK [/dim green]"
         latency_str = f"{latency_sec:.2f}s" if latency_sec is not None else ""
 
-        self.history.append({
-            "timestamp": timestamp,
-            "status_tag": status_tag,
-            "row_idx": row_idx,
-            "lang": lang,
-            "style": style,
-            "iteration": iteration,
-            "total_iterations": total_iterations,
-            "latency_str": latency_str,
-        })
+        with self._lock:
+            self.history.append({
+                "timestamp": timestamp,
+                "status_tag": status_tag,
+                "row_idx": row_idx,
+                "lang": lang,
+                "style": style,
+                "iteration": iteration,
+                "total_iterations": total_iterations,
+                "latency_str": latency_str,
+            })
 
-        if self.live:
-            self.live.update(self._get_renderable())
+            if self.live:
+                self.live.update(self._get_renderable())
 
     def update_progress(self, advance: int = 1, status_desc: Optional[str] = None):
         """Updates the progress bar."""
-        if self.task_id is not None:
-            kwargs = {"advance": advance}
-            if status_desc:
-                kwargs["description"] = status_desc
-            self.progress.update(self.task_id, **kwargs)
-            if self.live:
-                self.live.update(self._get_renderable())
+        with self._lock:
+            if self.task_id is not None:
+                kwargs = {"advance": advance}
+                if status_desc:
+                    kwargs["description"] = status_desc
+                self.progress.update(self.task_id, **kwargs)
+                if self.live:
+                    self.live.update(self._get_renderable())
 
     def log_warning(self, message: str):
         """Prints a subtle grayish warning."""
         timestamp = time.strftime("%H:%M:%S")
         msg = f"[dim #666666]{timestamp}[/dim #666666] [dim #cc9900]WARN[/dim #cc9900]  [dim #aaaaaa]{message}[/dim #aaaaaa]"
-        if self.live:
-            self.live.console.print(msg)
-        else:
-            self.console.print(msg)
+        with self._lock:
+            if self.live:
+                self.live.console.print(msg)
+            else:
+                self.console.print(msg)
 
     def log_error(self, message: str):
         """Prints an error message."""
         timestamp = time.strftime("%H:%M:%S")
         msg = f"[dim #666666]{timestamp}[/dim #666666] [red]ERROR[/red] [dim #aaaaaa]{message}[/dim #aaaaaa]"
-        if self.live:
-            self.live.console.print(msg)
-        else:
-            self.console.print(msg)
+        with self._lock:
+            if self.live:
+                self.live.console.print(msg)
+            else:
+                self.console.print(msg)
 
     def log_info(self, message: str):
         """Prints a subtle grayish info message."""
         timestamp = time.strftime("%H:%M:%S")
         msg = f"[dim #666666]{timestamp}[/dim #666666] [dim]INFO[/dim]  [dim #aaaaaa]{message}[/dim #aaaaaa]"
-        if self.live:
-            self.live.console.print(msg)
-        else:
-            self.console.print(msg)
+        with self._lock:
+            if self.live:
+                self.live.console.print(msg)
+            else:
+                self.console.print(msg)
 
     def log_quota_exhausted(self):
         """Displays a clear notice for quota exhaustion."""
@@ -238,10 +248,11 @@ class BenchmarkUI:
             border_style="dim red",
             padding=(1, 2),
         )
-        if self.live:
-            self.live.console.print(panel)
-        else:
-            self.console.print(panel)
+        with self._lock:
+            if self.live:
+                self.live.console.print(panel)
+            else:
+                self.console.print(panel)
 
     def show_summary(self, total_completed: int, total_planned: int, elapsed_time_sec: float):
         """Displays a clean end-of-run summary panel."""
