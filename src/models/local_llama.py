@@ -31,7 +31,7 @@ def resolve_model_path(model_name: str) -> str:
     return model_name
 
 
-def _get_or_load_llama(model_path: str, n_ctx: int = 4096):
+def _get_or_load_llama(model_path: str, n_ctx: int = 8192):
     """Loads and caches the GGUF model in VRAM."""
     global _LOCAL_MODEL_INSTANCE, _CURRENT_LOADED_MODEL_PATH
 
@@ -54,9 +54,10 @@ def _get_or_load_llama(model_path: str, n_ctx: int = 4096):
         print(f"[*] Loading local model into VRAM: {resolved_path}")
         _LOCAL_MODEL_INSTANCE = Llama(
             model_path=resolved_path,
-            n_gpu_layers=-1,  # Offload all layers to GPU
-            n_ctx=n_ctx,      # Context window size
-            verbose=False,    # Suppress C++ debug logs
+            n_gpu_layers=-1,      # Descarrega todas as 33 camadas na GPU
+            n_ctx=n_ctx,          # Janela de contexto ampliada para 8192
+            flash_attn=True,      # Otimização suportada pela arquitetura Ada Lovelace (RTX 4090)
+            verbose=False,
         )
         _CURRENT_LOADED_MODEL_PATH = resolved_path
 
