@@ -5,4 +5,4 @@ frontend/dist/
 dist/
 .env
 .env.local
-models/
+*.gguf
