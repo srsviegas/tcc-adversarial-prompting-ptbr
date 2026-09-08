@@ -15,12 +15,9 @@ def main():
 
     filter_label = sys.argv[1] if len(sys.argv) > 1 else "all"
 
-    # max_workers=None automatically sets parallel workers equal to the number of
-    # API keys configured in GEMINI_API_KEYS (or 1 if a single key is set).
-    # Set to an explicit integer (e.g. max_workers=5) to override.
     run_benchmark(
         dataset_path=str(dataset_path),
-        dataset_type="toxicchat",
+        dataset_type="toxicchat_prefix",
         provider="gemini",
         model="gemini-3.5-flash-lite",
         iterations=1,

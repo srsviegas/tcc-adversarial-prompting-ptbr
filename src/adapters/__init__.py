@@ -1,12 +1,66 @@
 from src.adapters.base import DatasetAdapter
 from src.adapters.pap import PAPAdapter
 from src.adapters.toxicchat import ToxicChatPlainAdapter
+from src.adapters.toxicchat_cipher import (
+    ToxicChatCipherAdapter,
+    ToxicChatObfuscationAdapter,
+    ToxicChatBase64Adapter,
+    ToxicChatRot13Adapter,
+    ToxicChatHexAdapter,
+    ToxicChatLeetspeakAdapter,
+    create_obfuscated_prompt,
+    obfuscate_payload,
+    obfuscate_toxicchat_input,
+    encode_payload,
+    encode_base64,
+    encode_rot13,
+    encode_hex,
+    encode_leetspeak,
+)
+from src.adapters.toxicchat_prefix import (
+    ToxicChatPrefixAdapter,
+    ToxicChatForcedAffirmationAdapter,
+    ToxicChatTargetedPrefixAdapter,
+    create_prefix_prompt,
+    inject_prefix_prompt,
+    create_forced_affirmation_prompt,
+)
+from src.adapters.toxicchat_gcg import (
+    ToxicChatGCGAdapter,
+    ToxicChatUniversalSuffixAdapter,
+    create_gcg_prompt,
+    DEFAULT_GCG_SUFFIXES,
+)
 from src.adapters.registry import AdapterRegistry, get_adapter
 
 __all__ = [
     "DatasetAdapter",
     "PAPAdapter",
     "ToxicChatPlainAdapter",
+    "ToxicChatCipherAdapter",
+    "ToxicChatObfuscationAdapter",
+    "ToxicChatBase64Adapter",
+    "ToxicChatRot13Adapter",
+    "ToxicChatHexAdapter",
+    "ToxicChatLeetspeakAdapter",
+    "ToxicChatPrefixAdapter",
+    "ToxicChatForcedAffirmationAdapter",
+    "ToxicChatTargetedPrefixAdapter",
+    "ToxicChatGCGAdapter",
+    "ToxicChatUniversalSuffixAdapter",
     "AdapterRegistry",
     "get_adapter",
+    "create_obfuscated_prompt",
+    "obfuscate_payload",
+    "obfuscate_toxicchat_input",
+    "encode_payload",
+    "encode_base64",
+    "encode_rot13",
+    "encode_hex",
+    "encode_leetspeak",
+    "create_prefix_prompt",
+    "inject_prefix_prompt",
+    "create_forced_affirmation_prompt",
+    "create_gcg_prompt",
+    "DEFAULT_GCG_SUFFIXES",
 ]

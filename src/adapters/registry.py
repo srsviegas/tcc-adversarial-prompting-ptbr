@@ -3,6 +3,23 @@ from typing import Dict, Type
 from src.adapters.base import DatasetAdapter
 from src.adapters.pap import PAPAdapter
 from src.adapters.toxicchat import ToxicChatPlainAdapter
+from src.adapters.toxicchat_cipher import (
+    ToxicChatCipherAdapter,
+    ToxicChatObfuscationAdapter,
+    ToxicChatBase64Adapter,
+    ToxicChatRot13Adapter,
+    ToxicChatHexAdapter,
+    ToxicChatLeetspeakAdapter,
+)
+from src.adapters.toxicchat_prefix import (
+    ToxicChatPrefixAdapter,
+    ToxicChatForcedAffirmationAdapter,
+    ToxicChatTargetedPrefixAdapter,
+)
+from src.adapters.toxicchat_gcg import (
+    ToxicChatGCGAdapter,
+    ToxicChatUniversalSuffixAdapter,
+)
 
 
 class AdapterRegistry:
@@ -12,6 +29,18 @@ class AdapterRegistry:
         "pap": PAPAdapter,
         "toxicchat": ToxicChatPlainAdapter,
         "toxicchat_plain": ToxicChatPlainAdapter,
+        "toxicchat_cipher": ToxicChatCipherAdapter,
+        "toxicchat_obfuscation": ToxicChatObfuscationAdapter,
+        "toxicchat_base64": ToxicChatBase64Adapter,
+        "toxicchat_rot13": ToxicChatRot13Adapter,
+        "toxicchat_hex": ToxicChatHexAdapter,
+        "toxicchat_leetspeak": ToxicChatLeetspeakAdapter,
+        "toxicchat_prefix": ToxicChatPrefixAdapter,
+        "toxicchat_prefix_injection": ToxicChatPrefixAdapter,
+        "toxicchat_forced_affirmation": ToxicChatForcedAffirmationAdapter,
+        "toxicchat_targeted_prefix": ToxicChatTargetedPrefixAdapter,
+        "toxicchat_gcg": ToxicChatGCGAdapter,
+        "toxicchat_universal_suffix": ToxicChatUniversalSuffixAdapter,
     }
 
     @classmethod
@@ -20,7 +49,7 @@ class AdapterRegistry:
         cls._ADAPTERS[name.lower().strip()] = adapter_cls
 
     @classmethod
-    def get_adapter(cls, dataset_type: str) -> DatasetAdapter:
+    def get_adapter(cls, dataset_type: str, **kwargs) -> DatasetAdapter:
         """Get an instance of a registered dataset adapter by name."""
         key = dataset_type.lower().strip()
         if key not in cls._ADAPTERS:
@@ -28,9 +57,9 @@ class AdapterRegistry:
             raise ValueError(
                 f"Unknown dataset type: '{dataset_type}'. Supported dataset types: {supported}"
             )
-        return cls._ADAPTERS[key]()
+        return cls._ADAPTERS[key](**kwargs)
 
 
-def get_adapter(dataset_type: str) -> DatasetAdapter:
+def get_adapter(dataset_type: str, **kwargs) -> DatasetAdapter:
     """Convenience factory function matching legacy get_adapter."""
-    return AdapterRegistry.get_adapter(dataset_type)
+    return AdapterRegistry.get_adapter(dataset_type, **kwargs)

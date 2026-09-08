@@ -56,6 +56,7 @@ def run_benchmark(
     api_key: Optional[Union[str, List[str]]] = None,
     api_keys: Optional[Union[str, List[str]]] = None,
     max_workers: Optional[int] = None,
+    filter_label: str = "all",
 ):
     if provider == "local" and model == "gemini-3.5-flash-lite":
         model = "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
@@ -81,7 +82,10 @@ def run_benchmark(
         effective_workers = 1
 
     df = pd.read_parquet(dataset_path)
-    adapter = get_adapter(dataset_type)
+    try:
+        adapter = get_adapter(dataset_type, filter_label=filter_label)
+    except TypeError:
+        adapter = get_adapter(dataset_type)
     df = adapter.format_data(df)
 
     log_filename = f"{provider}_{model_short_name}_{dataset_type}_eval.jsonl"
@@ -314,7 +318,7 @@ def run_benchmark(
 def parse_args():
     parser = argparse.ArgumentParser(description="Run LLM Prompt Injection Benchmarks")
     parser.add_argument("--dataset", type=str, required=True, help="Path to the parquet dataset (e.g., datasets/pap_pt_train.parquet)")
-    parser.add_argument("--type", type=str, default="pap", help="Type of dataset test to run (e.g., pap, toxicchat)")
+    parser.add_argument("--type", type=str, default="pap", help="Type of dataset test to run (e.g., pap, toxicchat, toxicchat_cipher, toxicchat_prefix, toxicchat_gcg)")
     parser.add_argument("--provider", type=str, default="gemini", choices=["gemini", "local"])
     parser.add_argument("--model", type=str, default="gemini-3.5-flash-lite", help="Model string to use")
     parser.add_argument("--iterations", type=int, default=5, help="Number of iterations per prompt (needs temp > 0)")
@@ -326,6 +330,7 @@ def parse_args():
     parser.add_argument("--api-key", type=str, default=None, help="Gemini API key or comma-separated keys")
     parser.add_argument("--api-keys", type=str, nargs="+", default=None, help="List of Gemini API keys for rotation")
     parser.add_argument("--max-workers", type=int, default=None, help="Number of concurrent worker threads (default: matches available API keys for Gemini, or 1 for local)")
+    parser.add_argument("--filter-label", type=str, default="all", choices=["all", "malicious", "jailbreak", "benign", "toxic"], help="Filter ToxicChat dataset rows by label ('all', 'malicious', 'jailbreak', 'benign', 'toxic')")
     return parser.parse_args()
 
 
@@ -345,6 +350,7 @@ def main():
         sleep=args.sleep,
         api_keys=api_keys,
         max_workers=args.max_workers,
+        filter_label=args.filter_label,
     )
 
 
