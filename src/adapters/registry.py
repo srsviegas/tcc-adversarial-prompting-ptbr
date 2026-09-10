@@ -10,6 +10,8 @@ from src.adapters.toxicchat_cipher import (
     ToxicChatRot13Adapter,
     ToxicChatHexAdapter,
     ToxicChatLeetspeakAdapter,
+    ToxicChatCaesarAdapter,
+    ToxicChatCesarAdapter,
 )
 from src.adapters.toxicchat_prefix import (
     ToxicChatPrefixAdapter,
@@ -35,6 +37,8 @@ class AdapterRegistry:
         "toxicchat_rot13": ToxicChatRot13Adapter,
         "toxicchat_hex": ToxicChatHexAdapter,
         "toxicchat_leetspeak": ToxicChatLeetspeakAdapter,
+        "toxicchat_caesar": ToxicChatCaesarAdapter,
+        "toxicchat_cesar": ToxicChatCesarAdapter,
         "toxicchat_prefix": ToxicChatPrefixAdapter,
         "toxicchat_prefix_injection": ToxicChatPrefixAdapter,
         "toxicchat_forced_affirmation": ToxicChatForcedAffirmationAdapter,

@@ -13,11 +13,12 @@ def main():
     if not dataset_path.exists():
         dataset_path = project_root / "dataset" / "toxicchat_pt_dataset" / "checkpoint_train.parquet"
 
-    filter_label = sys.argv[1] if len(sys.argv) > 1 else "all"
+    filter_label = sys.argv[1] if len(sys.argv) > 1 else "malicious"
+    dataset_type = sys.argv[2] if len(sys.argv) > 2 else "toxicchat_cipher"
 
     run_benchmark(
         dataset_path=str(dataset_path),
-        dataset_type="toxicchat_cipher",
+        dataset_type=dataset_type,
         provider="gemini",
         model="gemini-3.5-flash-lite",
         iterations=1,

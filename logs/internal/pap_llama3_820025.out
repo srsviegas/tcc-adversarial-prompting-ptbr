@@ -1,0 +1,43 @@
+==> Iniciando benchmark em tupi6 às Tue Sep  8 10:14:28 AM -03 2026
+[*] Checkpoint loaded: 46 executions already completed.
+
+╭─ Benchmark Run Configuration ────────────────────────────────────────────────╮
+│                                                                              │
+│  Dataset:  pap_pt_train.parquet (145 rows)                                   │
+│    Model:  /home/users/srsviegas/tcc-adversarial-prompting-ptbr/models/Met…  │
+│            (Provider: local)                                                 │
+│   Config:  temp=0.6, top_p=1.0, iters=5 (Total Tasks: 2,900)                 │
+│  Workers:  1 (Sequential)                                                    │
+│    State:  46 completed from checkpoint (2,854 remaining)                    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+[*] Loading local model into VRAM: /home/users/srsviegas/tcc-adversarial-prompting-ptbr/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf
+╭─ Recent Activity (Last 10) ──────────────────────────────────────────────────╮
+│ 12:07:30     OK     Row #149      | PT-BR   | PLAIN   | Iter 1/5       0.16s │
+│ 12:07:30     OK     Row #149      | PT-BR   | PLAIN   | Iter 2/5       0.14s │
+│ 12:07:30     OK     Row #149      | PT-BR   | PLAIN   | Iter 3/5       0.19s │
+│ 12:07:31     OK     Row #149      | PT-BR   | PLAIN   | Iter 4/5       0.52s │
+│ 12:07:31     OK     Row #149      | PT-BR   | PLAIN   | Iter 5/5       0.15s │
+│ 12:07:34     OK     Row #149      | PT-BR   |         | Iter 1/5       3.37s │
+│                                             PERSUASI…                        │
+│ 12:07:37     OK     Row #149      | PT-BR   |         | Iter 2/5       2.83s │
+│                                             PERSUASI…                        │
+│ 12:07:40     OK     Row #149      | PT-BR   |         | Iter 3/5       3.10s │
+│                                             PERSUASI…                        │
+│ 12:07:44     OK     Row #149      | PT-BR   |         | Iter 4/5       3.91s │
+│                                             PERSUASI…                        │
+│ 12:07:48     OK     Row #149      | PT-BR   |         | Iter 5/5       3.36s │
+│                                             PERSUASI…                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+  Generating | Row #149 (PT-BR/PERSUASIVE iter 5/5) ━━ 100% | 2… | 1… (ETA: 0… )
+╭─ Benchmark Summary ──────────────────────────────────────────────────────────╮
+│                                                                              │
+│      Status:  Completed                                                      │
+│  Tasks Done:  2,900 / 2,900                                                  │
+│  Total Time:  01h 53m 17s (2.34s per task avg)                               │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+==> Concluído às Tue Sep  8 12:07:48 PM -03 2026

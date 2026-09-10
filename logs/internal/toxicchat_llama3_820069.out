@@ -1,0 +1,13 @@
+==> Iniciando benchmark em tupi1 às Tue Sep  8 12:49:26 PM -03 2026
+
+╭─ Benchmark Run Configuration ────────────────────────────────────────────────╮
+│                                                                              │
+│  Dataset:  toxicchat_pt_train.parquet (5,082 rows)                           │
+│    Model:  /home/users/srsviegas/tcc-adversarial-prompting-ptbr/models/Met…  │
+│            (Provider: local)                                                 │
+│   Config:  temp=0.6, top_p=1.0, iters=1 (Total Tasks: 10,164)                │
+│  Workers:  1 (Sequential)                                                    │
+│    State:  Fresh run (10,164 remaining)                                      │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
