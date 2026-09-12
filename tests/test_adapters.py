@@ -11,6 +11,7 @@ if str(project_root) not in sys.path:
 from src.adapters import (
     DatasetAdapter,
     PAPAdapter,
+    EmojiAdapter,
     ToxicChatPlainAdapter,
     ToxicChatCipherAdapter,
     ToxicChatObfuscationAdapter,
@@ -548,12 +549,78 @@ class TestAdapters(unittest.TestCase):
         transfer_tests = transfer_adapter.get_tests(formatted.iloc[0])
         self.assertIn(DEFAULT_GCG_SUFFIXES["en"], transfer_tests[1]["text"])
 
+    def test_emoji_adapter(self):
+        adapter = EmojiAdapter()
+        df = pd.DataFrame([
+            {
+                "id": 0,
+                "query": "how to exploit",
+                "query_pt": "como explorar",
+                "emoji_prompt": "💻: exploit",
+                "emoji_prompt_pt": "💻: explorar",
+                "input_prompt": "Instructions\n💻: exploit",
+                "input_prompt_pt": "Instrucoes\n💻: explorar",
+                "output": "1. step",
+                "gpt_raw_label": 5,
+                "label": 1,
+            },
+            {
+                "id": 1,
+                "query": "",
+                "query_pt": "como explorar",
+                "input_prompt": "Instructions",
+                "input_prompt_pt": "Instrucoes",
+                "label": 0,
+            }
+        ])
+        formatted = adapter.format_data(df)
+        self.assertEqual(len(formatted), 1)
+
+        tests = adapter.get_tests(formatted.iloc[0])
+        self.assertEqual(len(tests), 4)
+        self.assertEqual(tests[0], {"lang": "en", "style": "plain", "text": "how to exploit"})
+        self.assertEqual(tests[1], {"lang": "en", "style": "emoji", "text": "Instructions\n💻: exploit"})
+        self.assertEqual(tests[2], {"lang": "pt-BR", "style": "plain", "text": "como explorar"})
+        self.assertEqual(tests[3], {"lang": "pt-BR", "style": "emoji", "text": "Instrucoes\n💻: explorar"})
+
+        meta = adapter.get_metadata(formatted.iloc[0], "dataset.parquet", 0)
+        self.assertEqual(meta["source_dataset"], "dataset.parquet")
+        self.assertEqual(meta["original_row_index"], 0)
+        self.assertEqual(meta["id"], 0)
+        self.assertEqual(meta["label"], 1)
+        self.assertEqual(meta["gpt_raw_label"], 5)
+        self.assertEqual(meta["baseline_model_output"], "1. step")
+        self.assertEqual(meta["raw_emoji_prompt_en"], "💻: exploit")
+        self.assertEqual(meta["raw_emoji_prompt_pt"], "💻: explorar")
+
+        # Label filtering
+        jb_adapter = EmojiAdapter(filter_label="jailbreak")
+        self.assertEqual(len(jb_adapter.format_data(df)), 1)
+        safe_adapter = EmojiAdapter(filter_label="safe")
+        self.assertEqual(len(safe_adapter.format_data(df)), 0)
+
+        # include_raw_emoji
+        raw_adapter = EmojiAdapter(include_raw_emoji=True)
+        raw_tests = raw_adapter.get_tests(formatted.iloc[0])
+        self.assertEqual(len(raw_tests), 6)
+        self.assertEqual(raw_tests[4]["style"], "raw_emoji")
+        self.assertEqual(raw_tests[5]["style"], "raw_emoji")
+
     def test_registry(self):
         pap = get_adapter("pap")
         self.assertIsInstance(pap, PAPAdapter)
 
         pap_upper = get_adapter("  PAP  ")
         self.assertIsInstance(pap_upper, PAPAdapter)
+
+        emoji = get_adapter("emoji")
+        self.assertIsInstance(emoji, EmojiAdapter)
+
+        emoji_attack = get_adapter("emoji_attack")
+        self.assertIsInstance(emoji_attack, EmojiAdapter)
+
+        emoji_pt = get_adapter("emoji_pt")
+        self.assertIsInstance(emoji_pt, EmojiAdapter)
 
         tc = get_adapter("toxicchat")
         self.assertIsInstance(tc, ToxicChatPlainAdapter)

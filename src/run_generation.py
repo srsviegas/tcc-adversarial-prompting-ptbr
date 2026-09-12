@@ -318,7 +318,7 @@ def run_benchmark(
 def parse_args():
     parser = argparse.ArgumentParser(description="Run LLM Prompt Injection Benchmarks")
     parser.add_argument("--dataset", type=str, required=True, help="Path to the parquet dataset (e.g., datasets/pap_pt_train.parquet)")
-    parser.add_argument("--type", type=str, default="pap", help="Type of dataset test to run (e.g., pap, toxicchat, toxicchat_cipher, toxicchat_prefix, toxicchat_gcg)")
+    parser.add_argument("--type", type=str, default="pap", help="Type of dataset test to run (e.g., pap, toxicchat, emoji, toxicchat_cipher, toxicchat_prefix, toxicchat_gcg)")
     parser.add_argument("--provider", type=str, default="gemini", choices=["gemini", "local"])
     parser.add_argument("--model", type=str, default="gemini-3.5-flash-lite", help="Model string to use")
     parser.add_argument("--iterations", type=int, default=5, help="Number of iterations per prompt (needs temp > 0)")

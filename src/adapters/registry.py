@@ -22,6 +22,7 @@ from src.adapters.toxicchat_gcg import (
     ToxicChatGCGAdapter,
     ToxicChatUniversalSuffixAdapter,
 )
+from src.adapters.emoji import EmojiAdapter
 
 
 class AdapterRegistry:
@@ -45,6 +46,9 @@ class AdapterRegistry:
         "toxicchat_targeted_prefix": ToxicChatTargetedPrefixAdapter,
         "toxicchat_gcg": ToxicChatGCGAdapter,
         "toxicchat_universal_suffix": ToxicChatUniversalSuffixAdapter,
+        "emoji": EmojiAdapter,
+        "emoji_attack": EmojiAdapter,
+        "emoji_pt": EmojiAdapter,
     }
 
     @classmethod

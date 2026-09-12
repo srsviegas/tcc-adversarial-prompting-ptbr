@@ -35,11 +35,13 @@ from src.adapters.toxicchat_gcg import (
     create_gcg_prompt,
     DEFAULT_GCG_SUFFIXES,
 )
+from src.adapters.emoji import EmojiAdapter
 from src.adapters.registry import AdapterRegistry, get_adapter
 
 __all__ = [
     "DatasetAdapter",
     "PAPAdapter",
+    "EmojiAdapter",
     "ToxicChatPlainAdapter",
     "ToxicChatCipherAdapter",
     "ToxicChatObfuscationAdapter",
