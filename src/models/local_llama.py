@@ -8,6 +8,7 @@ from src.models.base import (
     BaseModelProvider,
     build_error_response,
     build_success_response,
+    extract_thought_process,
 )
 
 _LOCAL_MODEL_INSTANCE = None
@@ -109,9 +110,11 @@ class LocalLlamaProvider(BaseModelProvider):
             latency = time.time() - start_time
 
             choice = response["choices"][0]
-            extracted_text = choice["message"]["content"] or ""
+            raw_content = choice["message"]["content"] or ""
             finish_reason = choice.get("finish_reason", "stop")
             usage = response.get("usage", {})
+
+            extracted_text, thought_process = extract_thought_process(raw_content)
 
             return build_success_response(
                 latency_seconds=latency,
@@ -121,6 +124,7 @@ class LocalLlamaProvider(BaseModelProvider):
                 output_tokens=usage.get("completion_tokens"),
                 total_tokens=usage.get("total_tokens"),
                 raw_api_payload=response,
+                thought_process=thought_process,
             )
 
         except Exception as e:

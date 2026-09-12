@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 
-from src.models.base import BaseModelProvider
+from src.models.base import BaseModelProvider, extract_thought_process
+from src.models.deepseek_r1 import DeepSeekR1Provider, call_deepseek_r1
 from src.models.gemini import GeminiProvider, call_gemini
 from src.models.local_llama import LocalLlamaProvider, call_local_llama
 from src.models.registry import ProviderRegistry
@@ -37,10 +38,13 @@ def generate_response(
 
 __all__ = [
     "BaseModelProvider",
+    "DeepSeekR1Provider",
     "GeminiProvider",
     "LocalLlamaProvider",
     "ProviderRegistry",
+    "call_deepseek_r1",
     "call_gemini",
     "call_local_llama",
+    "extract_thought_process",
     "generate_response",
 ]

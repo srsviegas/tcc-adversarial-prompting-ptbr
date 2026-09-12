@@ -1,6 +1,7 @@
 from typing import Dict, Type
 
 from src.models.base import BaseModelProvider
+from src.models.deepseek_r1 import DeepSeekR1Provider
 from src.models.gemini import GeminiProvider
 from src.models.local_llama import LocalLlamaProvider
 
@@ -13,6 +14,12 @@ class ProviderRegistry:
         "local": LocalLlamaProvider,
         "llama": LocalLlamaProvider,
         "local_llama": LocalLlamaProvider,
+        "deepseek": DeepSeekR1Provider,
+        "deepseek_r1": DeepSeekR1Provider,
+        "deepseek-r1": DeepSeekR1Provider,
+        "deepseek_r1_distill_qwen_14b": DeepSeekR1Provider,
+        "deepseek-r1-distill-qwen-14b": DeepSeekR1Provider,
+        "r1": DeepSeekR1Provider,
     }
 
     @classmethod

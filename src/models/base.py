@@ -1,7 +1,8 @@
+import re
 import time
 import traceback
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 
 def get_field(obj: Any, *keys: str, default: Any = None) -> Any:
@@ -17,6 +18,36 @@ def get_field(obj: Any, *keys: str, default: Any = None) -> Any:
     return default
 
 
+def extract_thought_process(text: str) -> Tuple[str, Optional[str]]:
+    """
+    Extracts reasoning content from <think>...</think> tags.
+    Returns a tuple of (extracted_text, thought_process).
+    - If <think>...</think> is present, the inner content is returned as thought_process
+      and removed from extracted_text.
+    - If an unclosed <think> tag is present (e.g. truncated generation), the content
+      following <think> is returned as thought_process.
+    - If no <think> tag is present, thought_process is None.
+    """
+    if not text:
+        return "", None
+
+    pattern = r"<think>(.*?)</think>"
+    matches = re.findall(pattern, text, flags=re.DOTALL | re.IGNORECASE)
+    if matches:
+        thought_process = "\n\n".join(m.strip() for m in matches).strip()
+        cleaned_text = re.sub(pattern, "", text, flags=re.DOTALL | re.IGNORECASE).strip()
+        return cleaned_text, thought_process
+
+    # Handle unclosed <think> tag (e.g. max output tokens reached during reasoning)
+    unclosed_match = re.search(r"<think>(.*)", text, flags=re.DOTALL | re.IGNORECASE)
+    if unclosed_match:
+        thought_process = unclosed_match.group(1).strip()
+        cleaned_text = text[:unclosed_match.start()].strip()
+        return cleaned_text, thought_process
+
+    return text.strip(), None
+
+
 def build_success_response(
     latency_seconds: float,
     extracted_text: str,
@@ -25,6 +56,7 @@ def build_success_response(
     output_tokens: Optional[int] = None,
     total_tokens: Optional[int] = None,
     raw_api_payload: Any = None,
+    thought_process: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Constructs a standardized success response dictionary."""
     return {
@@ -36,8 +68,10 @@ def build_success_response(
         },
         "output": {
             "extracted_text": extracted_text,
+            "thought_process": thought_process,
             "finish_reason": finish_reason,
         },
+        "thought_process": thought_process,
         "raw_api_payload": raw_api_payload,
         "error_log": {
             "failed": False,
@@ -62,8 +96,10 @@ def build_error_response(
         },
         "output": {
             "extracted_text": "",
+            "thought_process": None,
             "finish_reason": "error",
         },
+        "thought_process": None,
         "raw_api_payload": None,
         "error_log": {
             "failed": True,

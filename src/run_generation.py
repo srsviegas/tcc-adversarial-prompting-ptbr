@@ -60,6 +60,8 @@ def run_benchmark(
 ):
     if provider == "local" and model == "gemini-3.5-flash-lite":
         model = "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    elif provider in ("deepseek", "deepseek_r1", "deepseek-r1", "r1") and model == "gemini-3.5-flash-lite":
+        model = "models/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf"
     model_short_name = Path(model).name if ("/" in model or "\\" in model or ":" in model) else model
     model_short_name = model_short_name.replace(":", "_").replace("/", "_").replace("\\", "_")
 
@@ -252,6 +254,7 @@ def run_benchmark(
             },
             "execution_metrics": result["execution_metrics"],
             "output": result["output"],
+            "thought_process": result.get("thought_process"),
             "raw_api_payload": result["raw_api_payload"],
             "error_log": result["error_log"],
             "evaluation": {

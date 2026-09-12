@@ -3,9 +3,11 @@ from unittest.mock import MagicMock, patch
 
 from src.models import (
     BaseModelProvider,
+    DeepSeekR1Provider,
     GeminiProvider,
     LocalLlamaProvider,
     ProviderRegistry,
+    call_deepseek_r1,
     call_gemini,
     call_local_llama,
     generate_response,
@@ -25,6 +27,12 @@ class TestModelsModule(unittest.TestCase):
         llama_p = ProviderRegistry.get_provider("llama")
         self.assertIsInstance(llama_p, LocalLlamaProvider)
 
+        deepseek_p = ProviderRegistry.get_provider("deepseek")
+        self.assertIsInstance(deepseek_p, DeepSeekR1Provider)
+
+        r1_p = ProviderRegistry.get_provider("deepseek_r1")
+        self.assertIsInstance(r1_p, DeepSeekR1Provider)
+
         with self.assertRaises(ValueError):
             ProviderRegistry.get_provider("non_existent_provider")
 
@@ -37,11 +45,14 @@ class TestModelsModule(unittest.TestCase):
             output_tokens=5,
             total_tokens=15,
             raw_api_payload={"raw": True},
+            thought_process="Thinking step",
         )
 
         self.assertEqual(success["execution_metrics"]["latency_seconds"], 1.23)
         self.assertEqual(success["execution_metrics"]["input_tokens"], 10)
         self.assertEqual(success["output"]["extracted_text"], "Test output")
+        self.assertEqual(success["output"]["thought_process"], "Thinking step")
+        self.assertEqual(success["thought_process"], "Thinking step")
         self.assertFalse(success["error_log"]["failed"])
 
         error = build_error_response(
@@ -51,6 +62,8 @@ class TestModelsModule(unittest.TestCase):
         )
         self.assertEqual(error["execution_metrics"]["latency_seconds"], 0.5)
         self.assertEqual(error["output"]["finish_reason"], "error")
+        self.assertIsNone(error["output"]["thought_process"])
+        self.assertIsNone(error["thought_process"])
         self.assertTrue(error["error_log"]["failed"])
         self.assertEqual(error["error_log"]["error_message"], "Something failed")
 
@@ -74,9 +87,22 @@ class TestModelsModule(unittest.TestCase):
         )
         self.assertTrue(res_local["error_log"]["failed"])
 
+        res_deepseek = generate_response(
+            model_provider="deepseek",
+            api_key=None,
+            model_name="models/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf",
+            system_prompt="sys",
+            user_prompt="",
+        )
+        self.assertTrue(res_deepseek["error_log"]["failed"])
+
     def test_resolve_model_path(self):
+        from src.models.deepseek_r1 import resolve_deepseek_model_path
         path = resolve_model_path("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf")
         self.assertIn("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", path)
+
+        path_ds = resolve_deepseek_model_path("DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf")
+        self.assertIn("DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf", path_ds)
 
     @patch("src.models.gemini.genai.Client")
     def test_gemini_provider_success(self, mock_client_cls):
@@ -119,6 +145,21 @@ class TestModelsModule(unittest.TestCase):
             mock_load.side_effect = ImportError("llama-cpp-python is required...")
             res = call_local_llama(
                 model_name="models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+                system_prompt="sys",
+                user_prompt="hello",
+                temperature=0.7,
+                top_p=1.0,
+                max_output_tokens=50,
+                seed=42,
+            )
+            self.assertTrue(res["error_log"]["failed"])
+            self.assertIn("llama-cpp-python", res["error_log"]["error_message"])
+
+    def test_deepseek_missing_dependency(self):
+        with patch("src.models.deepseek_r1.get_or_load_deepseek") as mock_load:
+            mock_load.side_effect = ImportError("llama-cpp-python is required...")
+            res = call_deepseek_r1(
+                model_name="models/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf",
                 system_prompt="sys",
                 user_prompt="hello",
                 temperature=0.7,
