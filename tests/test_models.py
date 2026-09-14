@@ -8,10 +8,12 @@ from src.models import (
     LocalLlamaProvider,
     ProviderRegistry,
     Qwen3Provider,
+    Gemma4Provider,
     call_deepseek_r1,
     call_gemini,
     call_local_llama,
     call_qwen3,
+    call_gemma4,
     generate_response,
 )
 from src.models.base import build_error_response, build_success_response
@@ -40,6 +42,12 @@ class TestModelsModule(unittest.TestCase):
 
         qwen3_p = ProviderRegistry.get_provider("qwen3")
         self.assertIsInstance(qwen3_p, Qwen3Provider)
+
+        gemma_p = ProviderRegistry.get_provider("gemma")
+        self.assertIsInstance(gemma_p, Gemma4Provider)
+
+        gemma4_p = ProviderRegistry.get_provider("gemma4")
+        self.assertIsInstance(gemma4_p, Gemma4Provider)
 
         with self.assertRaises(ValueError):
             ProviderRegistry.get_provider("non_existent_provider")
@@ -113,9 +121,19 @@ class TestModelsModule(unittest.TestCase):
         )
         self.assertTrue(res_qwen["error_log"]["failed"])
 
+        res_gemma = generate_response(
+            model_provider="gemma4",
+            api_key=None,
+            model_name="models/gemma-4-12B-it-Q4_K_M.gguf",
+            system_prompt="sys",
+            user_prompt="",
+        )
+        self.assertTrue(res_gemma["error_log"]["failed"])
+
     def test_resolve_model_path(self):
         from src.models.deepseek_r1 import resolve_deepseek_model_path
         from src.models.qwen import resolve_qwen_model_path
+        from src.models.gemma import resolve_gemma_model_path
         path = resolve_model_path("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf")
         self.assertIn("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", path)
 
@@ -124,6 +142,9 @@ class TestModelsModule(unittest.TestCase):
 
         path_qwen = resolve_qwen_model_path("Qwen3-14B-Q4_K_M.gguf")
         self.assertIn("Qwen3-14B-Q4_K_M.gguf", path_qwen)
+
+        path_gemma = resolve_gemma_model_path("gemma-4-12B-it-Q4_K_M.gguf")
+        self.assertIn("gemma-4-12B-it-Q4_K_M.gguf", path_gemma)
 
     @patch("src.models.gemini.genai.Client")
     def test_gemini_provider_success(self, mock_client_cls):

@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 from src.models.base import BaseModelProvider, extract_thought_process
 from src.models.deepseek_r1 import DeepSeekR1Provider, call_deepseek_r1
 from src.models.gemini import GeminiProvider, call_gemini
+from src.models.gemma import Gemma4Provider, GemmaProvider, call_gemma4, call_gemma
 from src.models.local_llama import LocalLlamaProvider, call_local_llama
 from src.models.qwen import Qwen3Provider, QwenProvider, call_qwen3, call_qwen
 from src.models.registry import ProviderRegistry
@@ -41,12 +42,16 @@ __all__ = [
     "BaseModelProvider",
     "DeepSeekR1Provider",
     "GeminiProvider",
+    "Gemma4Provider",
+    "GemmaProvider",
     "LocalLlamaProvider",
     "ProviderRegistry",
     "Qwen3Provider",
     "QwenProvider",
     "call_deepseek_r1",
     "call_gemini",
+    "call_gemma",
+    "call_gemma4",
     "call_local_llama",
     "call_qwen",
     "call_qwen3",
