@@ -4,6 +4,7 @@ from src.models.base import BaseModelProvider, extract_thought_process
 from src.models.deepseek_r1 import DeepSeekR1Provider, call_deepseek_r1
 from src.models.gemini import GeminiProvider, call_gemini
 from src.models.local_llama import LocalLlamaProvider, call_local_llama
+from src.models.qwen import Qwen3Provider, QwenProvider, call_qwen3, call_qwen
 from src.models.registry import ProviderRegistry
 
 
@@ -42,9 +43,13 @@ __all__ = [
     "GeminiProvider",
     "LocalLlamaProvider",
     "ProviderRegistry",
+    "Qwen3Provider",
+    "QwenProvider",
     "call_deepseek_r1",
     "call_gemini",
     "call_local_llama",
+    "call_qwen",
+    "call_qwen3",
     "extract_thought_process",
     "generate_response",
 ]

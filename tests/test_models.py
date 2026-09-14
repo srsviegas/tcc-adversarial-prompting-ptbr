@@ -7,9 +7,11 @@ from src.models import (
     GeminiProvider,
     LocalLlamaProvider,
     ProviderRegistry,
+    Qwen3Provider,
     call_deepseek_r1,
     call_gemini,
     call_local_llama,
+    call_qwen3,
     generate_response,
 )
 from src.models.base import build_error_response, build_success_response
@@ -32,6 +34,12 @@ class TestModelsModule(unittest.TestCase):
 
         r1_p = ProviderRegistry.get_provider("deepseek_r1")
         self.assertIsInstance(r1_p, DeepSeekR1Provider)
+
+        qwen_p = ProviderRegistry.get_provider("qwen")
+        self.assertIsInstance(qwen_p, Qwen3Provider)
+
+        qwen3_p = ProviderRegistry.get_provider("qwen3")
+        self.assertIsInstance(qwen3_p, Qwen3Provider)
 
         with self.assertRaises(ValueError):
             ProviderRegistry.get_provider("non_existent_provider")
@@ -96,13 +104,26 @@ class TestModelsModule(unittest.TestCase):
         )
         self.assertTrue(res_deepseek["error_log"]["failed"])
 
+        res_qwen = generate_response(
+            model_provider="qwen3",
+            api_key=None,
+            model_name="models/Qwen3-14B-Q4_K_M.gguf",
+            system_prompt="sys",
+            user_prompt="",
+        )
+        self.assertTrue(res_qwen["error_log"]["failed"])
+
     def test_resolve_model_path(self):
         from src.models.deepseek_r1 import resolve_deepseek_model_path
+        from src.models.qwen import resolve_qwen_model_path
         path = resolve_model_path("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf")
         self.assertIn("Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", path)
 
         path_ds = resolve_deepseek_model_path("DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf")
         self.assertIn("DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf", path_ds)
+
+        path_qwen = resolve_qwen_model_path("Qwen3-14B-Q4_K_M.gguf")
+        self.assertIn("Qwen3-14B-Q4_K_M.gguf", path_qwen)
 
     @patch("src.models.gemini.genai.Client")
     def test_gemini_provider_success(self, mock_client_cls):

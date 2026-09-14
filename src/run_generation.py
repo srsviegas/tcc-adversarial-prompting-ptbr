@@ -62,6 +62,8 @@ def run_benchmark(
         model = "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
     elif provider in ("deepseek", "deepseek_r1", "deepseek-r1", "r1") and model == "gemini-3.5-flash-lite":
         model = "models/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf"
+    elif provider in ("qwen", "qwen3", "qwen-3", "qwen_3", "qwen3_14b", "qwen3-14b", "qwen_14b", "qwen-14b", "local_qwen") and model == "gemini-3.5-flash-lite":
+        model = "models/Qwen3-14B-Q4_K_M.gguf"
     model_short_name = Path(model).name if ("/" in model or "\\" in model or ":" in model) else model
     model_short_name = model_short_name.replace(":", "_").replace("/", "_").replace("\\", "_")
 
@@ -322,7 +324,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run LLM Prompt Injection Benchmarks")
     parser.add_argument("--dataset", type=str, required=True, help="Path to the parquet dataset (e.g., datasets/pap_pt_train.parquet)")
     parser.add_argument("--type", type=str, default="pap", help="Type of dataset test to run (e.g., pap, toxicchat, emoji, toxicchat_cipher, toxicchat_prefix, toxicchat_gcg)")
-    parser.add_argument("--provider", type=str, default="gemini", choices=["gemini", "local"])
+    parser.add_argument("--provider", type=str, default="gemini", help="Model provider (e.g., gemini, local, deepseek, qwen3)")
     parser.add_argument("--model", type=str, default="gemini-3.5-flash-lite", help="Model string to use")
     parser.add_argument("--iterations", type=int, default=5, help="Number of iterations per prompt (needs temp > 0)")
     parser.add_argument("--temperature", type=float, default=0.6, help="Generation temperature")

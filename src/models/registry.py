@@ -4,6 +4,7 @@ from src.models.base import BaseModelProvider
 from src.models.deepseek_r1 import DeepSeekR1Provider
 from src.models.gemini import GeminiProvider
 from src.models.local_llama import LocalLlamaProvider
+from src.models.qwen import Qwen3Provider
 
 
 class ProviderRegistry:
@@ -20,6 +21,15 @@ class ProviderRegistry:
         "deepseek_r1_distill_qwen_14b": DeepSeekR1Provider,
         "deepseek-r1-distill-qwen-14b": DeepSeekR1Provider,
         "r1": DeepSeekR1Provider,
+        "qwen": Qwen3Provider,
+        "qwen3": Qwen3Provider,
+        "qwen-3": Qwen3Provider,
+        "qwen_3": Qwen3Provider,
+        "qwen3_14b": Qwen3Provider,
+        "qwen3-14b": Qwen3Provider,
+        "qwen_14b": Qwen3Provider,
+        "qwen-14b": Qwen3Provider,
+        "local_qwen": Qwen3Provider,
     }
 
     @classmethod
