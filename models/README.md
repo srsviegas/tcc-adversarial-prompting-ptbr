@@ -33,19 +33,10 @@ hf download bartowski/DeepSeek-R1-Distill-Qwen-14B-GGUF DeepSeek-R1-Distill-Qwen
 
 ## Qwen3 14B Q4_K_M
 
-- **GGUF Model:** https://huggingface.co/bartowski/Qwen_Qwen3-14B-GGUF
+- **GGUF Model:** https://huggingface.co/Qwen/Qwen_Qwen3-14B-GGUF
 
 ```bash
-# Linux (Server with RTX 4090)
-pip install -U huggingface_hub
-huggingface-cli download bartowski/Qwen_Qwen3-14B-GGUF Qwen3-14B-Q4_K_M.gguf --local-dir ./models
-
-# Windows
-py -m pip install -U huggingface_hub
-py -m huggingface_hub.cli.hf download bartowski/Qwen_Qwen3-14B-GGUF Qwen3-14B-Q4_K_M.gguf --local-dir ./models
-
-# Or directly with hf CLI:
-hf download bartowski/Qwen_Qwen3-14B-GGUF Qwen3-14B-Q4_K_M.gguf --local-dir ./models
+hf download Qwen/Qwen3-14B-GGUF Qwen3-14B-Q4_K_M.gguf --local-dir ./models
 ```
 
 ## Google Gemma 4 12B-it Q4_K_M
@@ -53,14 +44,26 @@ hf download bartowski/Qwen_Qwen3-14B-GGUF Qwen3-14B-Q4_K_M.gguf --local-dir ./mo
 - **GGUF Model:** https://huggingface.co/bartowski/gemma-4-12B-it-GGUF
 
 ```bash
-# Linux (Server with RTX 4090)
-pip install -U huggingface_hub
-huggingface-cli download bartowski/gemma-4-12B-it-GGUF gemma-4-12B-it-Q4_K_M.gguf --local-dir ./models
-
-# Windows
-py -m pip install -U huggingface_hub
-py -m huggingface_hub.cli.hf download bartowski/gemma-4-12B-it-GGUF gemma-4-12B-it-Q4_K_M.gguf --local-dir ./models
-
-# Or directly with hf CLI:
 hf download bartowski/gemma-4-12B-it-GGUF gemma-4-12B-it-Q4_K_M.gguf --local-dir ./models
+```
+
+## NVIDIA Aegis AI Content Safety LlamaGuard Defensive 1.0
+
+- **Base Model:** https://huggingface.co/meta-llama/LlamaGuard-7b (Gated, requires accepting Llama license)
+- **LoRA Adapter:** https://huggingface.co/nvidia/Aegis-AI-Content-Safety-LlamaGuard-Defensive-1.0
+
+### Access & Setup:
+1. Accept terms on Hugging Face for `meta-llama/LlamaGuard-7b`.
+2. Set your Hugging Face token:
+```bash
+export HF_TOKEN="your_hf_token"
+```
+
+### Run Evaluation:
+```bash
+# Full precision / bfloat16 on RTX 4090:
+python scripts/evaluate_aegis.py logs/gemini_gemini-3.1-flash-lite_pap_eval.jsonl
+
+# Or in 4-bit quantization to conserve VRAM:
+python scripts/evaluate_aegis.py logs/gemini_gemini-3.1-flash-lite_pap_eval.jsonl --load-in-4bit
 ```
