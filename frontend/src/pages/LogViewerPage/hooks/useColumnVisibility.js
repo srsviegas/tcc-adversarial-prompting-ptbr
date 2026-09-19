@@ -25,7 +25,7 @@ export function useColumnVisibility(columns) {
             try {
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (raw) saved = JSON.parse(raw);
-            } catch (e) {
+            } catch {
                 // Ignore parse error
             }
 
@@ -34,8 +34,9 @@ export function useColumnVisibility(columns) {
             // Merge saved preferences with default model for any newly discovered columns
             const updated = { ...defaultModel, ...(saved || {}), ...prev };
 
-            // Always keep expand and copy columns visible
+            // Always keep expand, details, and copy columns visible
             updated.__expand__ = true;
+            updated.__details__ = true;
             updated.__copy__ = true;
 
             return updated;
@@ -47,6 +48,7 @@ export function useColumnVisibility(columns) {
             const next = typeof newModelOrFn === 'function' ? newModelOrFn(prev) : newModelOrFn;
             // Always keep fixed columns visible
             next.__expand__ = true;
+            next.__details__ = true;
             next.__copy__ = true;
 
             try {
@@ -71,6 +73,7 @@ export function useColumnVisibility(columns) {
             next[col.field] = true;
         });
         next.__expand__ = true;
+        next.__details__ = true;
         next.__copy__ = true;
         setColumnVisibilityModel(next);
     }, [setColumnVisibilityModel]);
@@ -81,6 +84,7 @@ export function useColumnVisibility(columns) {
             next[col.field] = col.field === 'id'; // Keep ID visible by default on deselect
         });
         next.__expand__ = true;
+        next.__details__ = true;
         next.__copy__ = true;
         setColumnVisibilityModel(next);
     }, [setColumnVisibilityModel]);

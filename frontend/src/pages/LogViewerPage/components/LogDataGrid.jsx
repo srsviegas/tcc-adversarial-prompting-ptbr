@@ -1,12 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
-import { Box, Typography, IconButton } from '@mui/material';
+import { Box, Typography, IconButton, Tooltip, Chip } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faChevronRight, faEye, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
 import { CopyRowButton } from './CopyRowButton';
 import { buildAllDataColumns } from '../utils/columnUtils';
 
-export function LogDataGrid({ data, columnVisibilityModel, onColumnVisibilityModelChange }) {
+export function LogDataGrid({
+    data,
+    columnVisibilityModel,
+    onColumnVisibilityModelChange,
+    onOpenRowDetails,
+}) {
     const [expandedRowIds, setExpandedRowIds] = useState(new Set());
 
     const toggleRow = (id) => {
@@ -27,7 +32,7 @@ export function LogDataGrid({ data, columnVisibilityModel, onColumnVisibilityMod
         const expandColumn = {
             field: '__expand__',
             headerName: '',
-            width: 48,
+            width: 44,
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
@@ -36,33 +41,123 @@ export function LogDataGrid({ data, columnVisibilityModel, onColumnVisibilityMod
             renderCell: (params) => {
                 const isExpanded = expandedRowIds.has(params.id);
                 return (
-                    <Box display="flex" justifyContent="center" height="100%">
-                        <Box display="flex" alignItems="center" height="18px">
-                            <IconButton
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleRow(params.id);
-                                }}
-                                color="text.secondary"
-                                sx={{
-                                    width: '28px',
-                                    height: '28px',
-                                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                    transition: 'transform 0.15s ease-in-out',
-                                }}
-                            >
-                                <FontAwesomeIcon icon={faChevronRight} style={{ fontSize: '0.75rem' }} />
-                            </IconButton>
-                        </Box>
-                    </Box>
+                    <IconButton
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRow(params.id);
+                        }}
+                        sx={{
+                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease',
+                            width: 28,
+                            height: 28,
+                            color: isExpanded ? 'primary.main' : 'text.secondary',
+                        }}
+                    >
+                        <FontAwesomeIcon icon={faChevronRight} style={{ fontSize: '0.75rem' }} />
+                    </IconButton>
                 );
             },
+        };
+
+        const actionColumn = {
+            field: '__details__',
+            headerName: 'Detail',
+            width: 56,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            resizable: false,
+            align: 'center',
+            renderCell: (params) => (
+                <Tooltip title="View full row data">
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onOpenRowDetails) onOpenRowDetails(params.row);
+                        }}
+                        sx={{ width: 28, height: 28 }}
+                    >
+                        <FontAwesomeIcon icon={faEye} style={{ fontSize: '0.8rem' }} />
+                    </IconButton>
+                </Tooltip>
+            ),
         };
 
         const builtColumns = buildAllDataColumns(data).map((col) => ({
             ...col,
             renderCell: (params) => {
                 const val = params.value;
+
+                // Dedicated Chip for evaluation verdict
+                if (col.field === 'evaluation_result.verdict') {
+                    const verdict = String(val || '').toLowerCase();
+                    if (!verdict) return <Typography variant="caption" color="text.secondary">—</Typography>;
+                    const isUnsafe = verdict === 'unsafe' || verdict === 'hit';
+                    return (
+                        <Chip
+                            label={isUnsafe ? 'Unsafe (Hit)' : 'Safe'}
+                            size="small"
+                            icon={<FontAwesomeIcon icon={faShieldHalved} style={{ fontSize: '0.7rem' }} />}
+                            sx={{
+                                height: 22,
+                                fontSize: '0.725rem',
+                                fontWeight: 700,
+                                bgcolor: isUnsafe ? '#fef2f2' : '#f0fdf4',
+                                color: isUnsafe ? '#dc2626' : '#16a34a',
+                                border: `1px solid ${isUnsafe ? '#fecaca' : '#bbf7d0'}`,
+                                '& .MuiChip-icon': {
+                                    color: isUnsafe ? '#dc2626' : '#16a34a',
+                                    marginLeft: '6px',
+                                },
+                            }}
+                        />
+                    );
+                }
+
+                // Dedicated Chip for ASR hit
+                if (col.field === 'evaluation.attack_success_rate_hit') {
+                    if (val === null || val === undefined) {
+                        return <Typography variant="caption" color="text.secondary">—</Typography>;
+                    }
+                    const isHit = val === true || val === 1;
+                    return (
+                        <Chip
+                            label={isHit ? 'ASR Hit' : 'Safe'}
+                            size="small"
+                            sx={{
+                                height: 22,
+                                fontSize: '0.725rem',
+                                fontWeight: 700,
+                                bgcolor: isHit ? '#fef2f2' : '#f0fdf4',
+                                color: isHit ? '#dc2626' : '#16a34a',
+                                border: `1px solid ${isHit ? '#fecaca' : '#bbf7d0'}`,
+                            }}
+                        />
+                    );
+                }
+
+                // Dedicated Chip for flagged categories
+                if (col.field === 'evaluation_result.flagged_categories' && val) {
+                    return (
+                        <Chip
+                            label={val}
+                            size="small"
+                            sx={{
+                                height: 21,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                bgcolor: '#fff7ed',
+                                color: '#c2410c',
+                                border: '1px solid #fed7aa',
+                            }}
+                        />
+                    );
+                }
+
                 const isExpanded = expandedRowIds.has(params.id);
                 let displayVal = '';
                 if (typeof val === 'object' && val !== null) {
@@ -100,8 +195,9 @@ export function LogDataGrid({ data, columnVisibilityModel, onColumnVisibilityMod
             renderCell: (params) => <CopyRowButton row={params.row} />,
         };
 
-        return [expandColumn, ...builtColumns, copyColumn];
-    }, [data, expandedRowIds]);
+        return [expandColumn, actionColumn, ...builtColumns, copyColumn];
+    }, [data, expandedRowIds, onOpenRowDetails]);
+
 
     if (!data || data.length === 0) {
         return (
@@ -134,6 +230,7 @@ export function LogDataGrid({ data, columnVisibilityModel, onColumnVisibilityMod
                     pagination: { paginationModel: { pageSize: 50 } },
                 }}
                 disableRowSelectionOnClick
+                onRowDoubleClick={(params) => onOpenRowDetails && onOpenRowDetails(params.row)}
                 sx={{
                     border: 'none',
                     '& .MuiDataGrid-columnHeaders': {

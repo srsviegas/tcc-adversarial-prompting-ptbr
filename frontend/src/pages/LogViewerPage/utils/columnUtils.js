@@ -29,6 +29,8 @@ import {
 
 export const DEFAULT_VISIBLE_FIELDS = new Set([
     'id',
+    'evaluation_result.verdict',
+    'evaluation_result.flagged_categories',
     'inputs.attack_style',
     'dataset_metadata.attack_category',
     'inputs.user_input_raw',
@@ -351,7 +353,7 @@ export function getDefaultColumnVisibility(columns) {
     let visibleCount = 0;
 
     columns.forEach((col) => {
-        if (col.field === '__expand__' || col.field === '__copy__') {
+        if (col.field === '__expand__' || col.field === '__copy__' || col.field === '__details__') {
             model[col.field] = true;
             return;
         }
@@ -367,7 +369,7 @@ export function getDefaultColumnVisibility(columns) {
     // Fallback if no matching standard columns were found
     if (visibleCount === 0) {
         const fallbackCols = columns
-            .filter((c) => c.field !== '__expand__' && c.field !== '__copy__' && !c.isObject)
+            .filter((c) => c.field !== '__expand__' && c.field !== '__copy__' && c.field !== '__details__' && !c.isObject)
             .slice(0, 7);
         fallbackCols.forEach((c) => {
             model[c.field] = true;

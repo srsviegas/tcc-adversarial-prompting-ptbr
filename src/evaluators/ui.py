@@ -242,6 +242,16 @@ class EvaluationUI:
             else:
                 self.console.print(msg)
 
+    def log_info(self, message: str):
+        """Prints an informational message."""
+        timestamp = time.strftime("%H:%M:%S")
+        msg = f"[dim #666666]{timestamp}[/dim #666666] [dim #00aaff]INFO[/dim #00aaff]  [dim #aaaaaa]{message}[/dim #aaaaaa]"
+        with self._lock:
+            if self.live:
+                self.live.console.print(msg)
+            else:
+                self.console.print(msg)
+
     def show_summary(
         self,
         total_records: int,

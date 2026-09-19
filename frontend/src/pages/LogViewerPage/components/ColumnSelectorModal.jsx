@@ -43,7 +43,7 @@ export function ColumnSelectorModal({
     // Filter out internal non-data columns
     const selectableColumns = useMemo(() => {
         return (columns || []).filter(
-            (c) => c.field !== '__expand__' && c.field !== '__copy__'
+            (c) => c.field !== '__expand__' && c.field !== '__copy__' && c.field !== '__details__'
         );
     }, [columns]);
 
