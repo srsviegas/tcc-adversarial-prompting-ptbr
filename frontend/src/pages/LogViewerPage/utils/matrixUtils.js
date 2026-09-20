@@ -33,6 +33,41 @@ export const STANDARD_METHODS = [
         color: '#8b5cf6',
     },
     {
+        id: 'toxicchat_base64',
+        label: 'ToxicChat Base64',
+        shortLabel: 'Base64',
+        description: 'Base64 Obfuscation benchmark',
+        color: '#8b5cf6',
+    },
+    {
+        id: 'toxicchat_rot13',
+        label: 'ToxicChat ROT13',
+        shortLabel: 'ROT13',
+        description: 'ROT13 Letter Substitution benchmark',
+        color: '#a855f7',
+    },
+    {
+        id: 'toxicchat_hex',
+        label: 'ToxicChat Hex',
+        shortLabel: 'Hex',
+        description: 'Hexadecimal ASCII Encoding benchmark',
+        color: '#7c3aed',
+    },
+    {
+        id: 'toxicchat_caesar',
+        label: 'ToxicChat Caesar',
+        shortLabel: 'Caesar',
+        description: 'Caesar Cipher Shift-3 benchmark',
+        color: '#9333ea',
+    },
+    {
+        id: 'toxicchat_leetspeak',
+        label: 'ToxicChat Leetspeak',
+        shortLabel: 'Leetspeak',
+        description: 'Leet 1337 Character Substitution benchmark',
+        color: '#6366f1',
+    },
+    {
         id: 'toxicchat_prefix',
         label: 'ToxicChat Prefix',
         shortLabel: 'Prefix',
@@ -68,7 +103,7 @@ export const STANDARD_MODELS = [
         label: 'DeepSeek-R1 Distill 14B',
         shortLabel: 'DeepSeek-R1 14B',
         provider: 'deepseek',
-        matchTokens: ['deepseek-r1-distill-qwen-14b', 'deepseek_r1_14b', 'deepseek-r1'],
+        matchTokens: ['deepseek-r1-distill-qwen-14b', 'deepseek_r1', 'deepseek-r1', 'r1-14b'],
     },
     {
         id: 'Qwen3-14B',
@@ -87,6 +122,12 @@ export const STANDARD_MODELS = [
 ];
 
 const KNOWN_METHOD_KEYS = [
+    'toxicchat_base64',
+    'toxicchat_rot13',
+    'toxicchat_hex',
+    'toxicchat_leetspeak',
+    'toxicchat_caesar',
+    'toxicchat_cesar',
     'toxicchat_cipher',
     'toxicchat_prefix',
     'toxicchat_gcg',

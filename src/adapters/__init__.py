@@ -20,6 +20,11 @@ from src.adapters.toxicchat_cipher import (
     encode_leetspeak,
     encode_caesar,
     decode_caesar,
+    decode_payload,
+    decode_base64,
+    decode_rot13,
+    decode_hex,
+    decode_leetspeak,
 )
 from src.adapters.toxicchat_prefix import (
     ToxicChatPrefixAdapter,
@@ -68,6 +73,11 @@ __all__ = [
     "encode_leetspeak",
     "encode_caesar",
     "decode_caesar",
+    "decode_payload",
+    "decode_base64",
+    "decode_rot13",
+    "decode_hex",
+    "decode_leetspeak",
     "create_prefix_prompt",
     "inject_prefix_prompt",
     "create_forced_affirmation_prompt",

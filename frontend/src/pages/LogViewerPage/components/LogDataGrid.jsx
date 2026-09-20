@@ -91,6 +91,7 @@ export function LogDataGrid({
             ...col,
             renderCell: (params) => {
                 const val = params.value;
+                const isExpanded = expandedRowIds.has(params.id);
 
                 // Dedicated Chip for evaluation verdict
                 if (col.field === 'evaluation_result.verdict') {
@@ -158,7 +159,31 @@ export function LogDataGrid({
                     );
                 }
 
-                const isExpanded = expandedRowIds.has(params.id);
+                // Dedicated styling for ciphered response
+                if (col.field === 'output.ciphered_text' && val) {
+                    return (
+                        <Box
+                            sx={{
+                                fontFamily: 'monospace',
+                                fontSize: '0.75rem',
+                                bgcolor: 'rgba(99, 102, 241, 0.08)',
+                                px: 1,
+                                py: 0.25,
+                                borderRadius: 1,
+                                overflow: 'hidden',
+                                textOverflow: isExpanded ? 'clip' : 'ellipsis',
+                                whiteSpace: isExpanded ? 'pre-wrap' : 'nowrap',
+                                wordBreak: 'break-all',
+                                color: '#4338ca',
+                                border: '1px solid rgba(99, 102, 241, 0.2)',
+                                width: '100%',
+                            }}
+                        >
+                            {String(val)}
+                        </Box>
+                    );
+                }
+
                 let displayVal = '';
                 if (typeof val === 'object' && val !== null) {
                     displayVal = isExpanded ? JSON.stringify(val, null, 2) : JSON.stringify(val);

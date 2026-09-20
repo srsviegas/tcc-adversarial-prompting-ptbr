@@ -118,13 +118,50 @@ function CopyableTextCard({ title, icon, text, badge, maxContentHeight = 240, sp
     };
 
     const isThought = specialStyle === 'thought';
+    const isCipher = specialStyle === 'cipher';
+
+    const getBgColor = () => {
+        if (isThought) return '#faf5ff';
+        if (isCipher) return '#f8faff';
+        return '#ffffff';
+    };
+
+    const getBorderColor = () => {
+        if (isThought) return '#e9d5ff';
+        if (isCipher) return '#c7d2fe';
+        return '#e2e8f0';
+    };
+
+    const getHeaderBg = () => {
+        if (isThought) return '#f5f3ff';
+        if (isCipher) return '#eef2ff';
+        return '#f8fafc';
+    };
+
+    const getHeaderColor = () => {
+        if (isThought) return '#581c87';
+        if (isCipher) return '#3730a3';
+        return '#334155';
+    };
+
+    const getIconColor = () => {
+        if (isThought) return '#7c3aed';
+        if (isCipher) return '#4f46e5';
+        return '#64748b';
+    };
+
+    const getTextColor = () => {
+        if (isThought) return '#3b0764';
+        if (isCipher) return '#312e81';
+        return '#1e293b';
+    };
 
     return (
         <Box
             sx={{
-                bgcolor: isThought ? '#faf5ff' : '#ffffff',
+                bgcolor: getBgColor(),
                 border: '1px solid',
-                borderColor: isThought ? '#e9d5ff' : '#e2e8f0',
+                borderColor: getBorderColor(),
                 borderRadius: 2,
                 overflow: 'hidden',
             }}
@@ -133,9 +170,9 @@ function CopyableTextCard({ title, icon, text, badge, maxContentHeight = 240, sp
                 sx={{
                     px: 2,
                     py: 1,
-                    bgcolor: isThought ? '#f5f3ff' : '#f8fafc',
+                    bgcolor: getHeaderBg(),
                     borderBottom: '1px solid',
-                    borderColor: isThought ? '#ede9fe' : '#e2e8f0',
+                    borderColor: getBorderColor(),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -145,13 +182,13 @@ function CopyableTextCard({ title, icon, text, badge, maxContentHeight = 240, sp
                     {icon && (
                         <FontAwesomeIcon
                             icon={icon}
-                            style={{ fontSize: '0.75rem', color: isThought ? '#7c3aed' : '#64748b' }}
+                            style={{ fontSize: '0.75rem', color: getIconColor() }}
                         />
                     )}
                     <Typography
                         variant="subtitle2"
                         fontWeight={600}
-                        color={isThought ? '#581c87' : '#334155'}
+                        color={getHeaderColor()}
                         fontSize="0.8rem"
                     >
                         {title}
@@ -177,10 +214,11 @@ function CopyableTextCard({ title, icon, text, badge, maxContentHeight = 240, sp
                 {text ? (
                     <Typography
                         variant="body2"
-                        fontSize="0.825rem"
-                        color={isThought ? '#3b0764' : '#1e293b'}
+                        fontSize={isCipher ? '0.78rem' : '0.825rem'}
+                        fontFamily={isCipher ? 'monospace' : 'inherit'}
+                        color={getTextColor()}
                         lineHeight={1.65}
-                        sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        sx={{ whiteSpace: 'pre-wrap', wordBreak: isCipher ? 'break-all' : 'break-word' }}
                     >
                         {text}
                     </Typography>
@@ -234,6 +272,7 @@ export function LogRowDetailModal({
     const userInput = getPathValue(row, 'inputs.user_input_raw') || '';
     const systemPrompt = getPathValue(row, 'inputs.system_prompt') || '';
     const extractedText = getPathValue(row, 'output.extracted_text') || '';
+    const cipheredText = getPathValue(row, 'output.ciphered_text') || '';
     const thoughtProcess =
         getPathValue(row, 'output.thought_process') ||
         getPathValue(row, 'thought_process') ||
@@ -598,17 +637,63 @@ export function LogRowDetailModal({
                             />
                         )}
 
+                        {/* Ciphered Response (Raw Model Output when available) */}
+                        {cipheredText && (
+                            <CopyableTextCard
+                                title="Ciphered Response (Raw Model Output)"
+                                icon={faCode}
+                                text={cipheredText}
+                                specialStyle="cipher"
+                                maxContentHeight={240}
+                                badge={
+                                    <Stack direction="row" spacing={0.75} alignItems="center">
+                                        <Chip
+                                            label="Cipher Text"
+                                            size="small"
+                                            sx={{
+                                                height: 18,
+                                                fontSize: '0.625rem',
+                                                fontWeight: 600,
+                                                bgcolor: '#eef2ff',
+                                                color: '#4338ca',
+                                                border: '1px solid #c7d2fe',
+                                            }}
+                                        />
+                                        <Typography variant="caption" color="#4338ca" fontSize="0.7rem" fontWeight={500}>
+                                            {cipheredText.length} chars
+                                        </Typography>
+                                    </Stack>
+                                }
+                            />
+                        )}
+
                         {/* Model Output / Response */}
                         <CopyableTextCard
-                            title="Model Response"
+                            title={cipheredText ? "Model Response (Decoded Plaintext)" : "Model Response"}
                             icon={faRobot}
                             text={extractedText}
                             maxContentHeight={360}
                             badge={
                                 extractedText ? (
-                                    <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
-                                        {extractedText.trim().split(/\s+/).length} words · {extractedText.length} chars
-                                    </Typography>
+                                    <Stack direction="row" spacing={0.75} alignItems="center">
+                                        {cipheredText && (
+                                            <Chip
+                                                label="Algorithmic Decoded"
+                                                size="small"
+                                                sx={{
+                                                    height: 18,
+                                                    fontSize: '0.625rem',
+                                                    fontWeight: 600,
+                                                    bgcolor: '#ecfdf5',
+                                                    color: '#047857',
+                                                    border: '1px solid #a7f3d0',
+                                                }}
+                                            />
+                                        )}
+                                        <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
+                                            {extractedText.trim().split(/\s+/).length} words · {extractedText.length} chars
+                                        </Typography>
+                                    </Stack>
                                 ) : null
                             }
                         />

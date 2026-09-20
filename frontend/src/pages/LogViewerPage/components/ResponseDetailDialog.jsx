@@ -23,6 +23,7 @@ import {
     faBrain,
     faCopy,
     faCheck,
+    faCode,
 } from '@fortawesome/free-solid-svg-icons';
 import { getPathValue } from '../utils/columnUtils';
 import { getTokenColor } from '../utils/testCaseUtils';
@@ -96,10 +97,12 @@ export function ResponseDetailDialog({ open, onClose, entry }) {
     const [copiedPrompt, setCopiedPrompt] = useState(false);
     const [copiedThought, setCopiedThought] = useState(false);
     const [copiedResponse, setCopiedResponse] = useState(false);
+    const [copiedCipher, setCopiedCipher] = useState(false);
 
     if (!entry) return null;
 
     let extractedText = getPathValue(entry, 'output.extracted_text') || '';
+    const cipheredText = getPathValue(entry, 'output.ciphered_text') || '';
     const thoughtProcess = extractThoughtProcess(entry);
 
     // If extracted_text still contains <think> tags, strip them for the response display
@@ -339,11 +342,107 @@ export function ResponseDetailDialog({ open, onClose, entry }) {
                         </Box>
                     )}
 
+                    {/* Ciphered Response (When available!) */}
+                    {cipheredText && (
+                        <Box>
+                            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Box
+                                        sx={{
+                                            width: 22,
+                                            height: 22,
+                                            borderRadius: 1,
+                                            bgcolor: '#eef2ff',
+                                            color: '#4f46e5',
+                                            border: '1px solid #c7d2fe',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        <FontAwesomeIcon icon={faCode} style={{ fontSize: '0.7rem' }} />
+                                    </Box>
+                                    <Typography variant="subtitle2" fontWeight={700} color="#0f172a" fontSize="0.8rem">
+                                        Ciphered Response (Raw Model Output)
+                                    </Typography>
+                                    <Chip
+                                        label="Cipher Text"
+                                        size="small"
+                                        sx={{
+                                            height: 18,
+                                            fontSize: '0.625rem',
+                                            fontWeight: 600,
+                                            bgcolor: '#eef2ff',
+                                            color: '#4338ca',
+                                            border: '1px solid #c7d2fe',
+                                        }}
+                                    />
+                                    <Typography variant="caption" color="#4338ca" fontSize="0.7rem" fontWeight={500}>
+                                        {cipheredText.length} chars
+                                    </Typography>
+                                </Stack>
+                                <Tooltip title={copiedCipher ? 'Copied' : 'Copy ciphered response'}>
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(cipheredText);
+                                            setCopiedCipher(true);
+                                            setTimeout(() => setCopiedCipher(false), 1500);
+                                        }}
+                                        sx={{ width: 24, height: 24 }}
+                                    >
+                                        <FontAwesomeIcon
+                                            icon={copiedCipher ? faCheck : faCopy}
+                                            style={{ fontSize: '0.75rem', color: copiedCipher ? '#16a34a' : '#64748b' }}
+                                        />
+                                    </IconButton>
+                                </Tooltip>
+                            </Stack>
+                            <Box
+                                sx={{
+                                    p: 2,
+                                    bgcolor: '#f8faff',
+                                    border: '1px solid #c7d2fe',
+                                    borderRadius: 2,
+                                    maxHeight: 240,
+                                    overflow: 'auto',
+                                }}
+                            >
+                                <Typography
+                                    variant="body2"
+                                    fontSize="0.78rem"
+                                    fontFamily="monospace"
+                                    color="#312e81"
+                                    lineHeight={1.65}
+                                    sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                                >
+                                    {cipheredText}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
+
                     <Box>
                         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                            <Typography variant="subtitle2" fontWeight={700} color="#0f172a" fontSize="0.8rem">
-                                Response
-                            </Typography>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                                <Typography variant="subtitle2" fontWeight={700} color="#0f172a" fontSize="0.8rem">
+                                    {cipheredText ? 'Response (Decoded Plaintext)' : 'Response'}
+                                </Typography>
+                                {cipheredText && (
+                                    <Chip
+                                        label="Algorithmic Decoded"
+                                        size="small"
+                                        sx={{
+                                            height: 18,
+                                            fontSize: '0.625rem',
+                                            fontWeight: 600,
+                                            bgcolor: '#ecfdf5',
+                                            color: '#047857',
+                                            border: '1px solid #a7f3d0',
+                                        }}
+                                    />
+                                )}
+                            </Stack>
                             {extractedText && (
                                 <Tooltip title={copiedResponse ? 'Copied' : 'Copy response'}>
                                     <IconButton

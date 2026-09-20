@@ -18,6 +18,7 @@ from src.logger import BenchmarkLogger
 from src.models import generate_response
 from src.prompts import TARGET_SYSTEM_PROMPTS
 from src.adapters import get_adapter
+from src.adapters.toxicchat_cipher import decode_payload
 from src.ui import BenchmarkUI
 from src.key_rotator import KeyRotator
 
@@ -58,6 +59,33 @@ def run_benchmark(
     max_workers: Optional[int] = None,
     filter_label: str = "all",
 ):
+    if dataset_type in ("toxicchat_cipher", "toxicchat_obfuscation"):
+        cipher_types = [
+            "toxicchat_base64",
+            "toxicchat_rot13",
+            "toxicchat_hex",
+            "toxicchat_leetspeak",
+            "toxicchat_caesar",
+        ]
+        for c_type in cipher_types:
+            run_benchmark(
+                dataset_path=dataset_path,
+                dataset_type=c_type,
+                provider=provider,
+                model=model,
+                iterations=iterations,
+                temperature=temperature,
+                top_p=top_p,
+                max_output_tokens=max_output_tokens,
+                seed=seed,
+                sleep=sleep,
+                api_key=api_key,
+                api_keys=api_keys,
+                max_workers=max_workers,
+                filter_label=filter_label,
+            )
+        return
+
     if provider == "local" and model == "gemini-3.5-flash-lite":
         model = "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
     elif provider in ("deepseek", "deepseek_r1", "deepseek-r1", "r1") and model == "gemini-3.5-flash-lite":
@@ -150,7 +178,7 @@ def run_benchmark(
         status_desc = f"Generating [dim]| Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}/{iterations})[/dim]"
         ui.update_progress(advance=0, status_desc=status_desc)
 
-        system_prompt = TARGET_SYSTEM_PROMPTS[test["lang"]]
+        system_prompt = test.get("system_prompt") or TARGET_SYSTEM_PROMPTS[test["lang"]]
         max_retries = 3
         retry_count = 0
         success = False
@@ -229,6 +257,34 @@ def run_benchmark(
                 else:
                     ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) failed after {max_retries} attempts: {raw_err_msg[:120]}")
                     break
+
+            # Handle cipher decoding if this is a cipher test
+            if test.get("cipher"):
+                raw_cipher_text = result["output"].get("extracted_text") or ""
+                result["output"]["ciphered_text"] = raw_cipher_text
+
+                try:
+                    decoded_text = decode_payload(
+                        raw_cipher_text,
+                        cipher=test["cipher"],
+                        shift=test.get("shift", 3),
+                        lang=test.get("lang", "en"),
+                    )
+                    result["output"]["extracted_text"] = decoded_text
+                except Exception as e:
+                    retry_count += 1
+                    decode_err_msg = f"Cipher decoding failed ({test['cipher']}): {e}"
+                    result["error_log"]["failed"] = True
+                    result["error_log"]["error_message"] = decode_err_msg
+
+                    if retry_count < max_retries:
+                        wait_time = 2 * retry_count
+                        ui.log_warning(f"Row #{index} {decode_err_msg}. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) cipher decoding failed after {max_retries} attempts: {decode_err_msg}")
+                        break
 
             success = True
 

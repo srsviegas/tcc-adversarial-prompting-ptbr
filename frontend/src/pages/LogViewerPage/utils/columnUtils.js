@@ -34,6 +34,7 @@ export const DEFAULT_VISIBLE_FIELDS = new Set([
     'inputs.attack_style',
     'dataset_metadata.attack_category',
     'inputs.user_input_raw',
+    'output.ciphered_text',
     'output.extracted_text',
     'model_config.model_name',
     'execution_metrics.latency_seconds',
@@ -220,6 +221,7 @@ function getColumnDimensions(field, isObject) {
 
     if (
         lower.endsWith('.user_input_raw') ||
+        lower.endsWith('.ciphered_text') ||
         lower.endsWith('.extracted_text') ||
         lower.endsWith('.system_prompt') ||
         lower.endsWith('.judge_reasoning') ||
