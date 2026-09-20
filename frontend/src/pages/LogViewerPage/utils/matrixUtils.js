@@ -26,13 +26,6 @@ export const STANDARD_METHODS = [
         color: '#f59e0b',
     },
     {
-        id: 'toxicchat_cipher',
-        label: 'ToxicChat Cipher',
-        shortLabel: 'Cipher',
-        description: 'Base64, ROT13, Hex, Caesar, Leetspeak',
-        color: '#8b5cf6',
-    },
-    {
         id: 'toxicchat_base64',
         label: 'ToxicChat Base64',
         shortLabel: 'Base64',
@@ -73,13 +66,6 @@ export const STANDARD_METHODS = [
         shortLabel: 'Prefix',
         description: 'Targeted Prefix & Forced Affirmation',
         color: '#14b8a6',
-    },
-    {
-        id: 'toxicchat_gcg',
-        label: 'ToxicChat GCG',
-        shortLabel: 'GCG',
-        description: 'Greedy Coordinate Gradient universal suffix',
-        color: '#f43f5e',
     },
 ];
 
