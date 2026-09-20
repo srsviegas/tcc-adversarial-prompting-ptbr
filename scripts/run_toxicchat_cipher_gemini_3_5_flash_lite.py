@@ -94,8 +94,8 @@ Examples:
     parser.add_argument(
         "--eval-aegis",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Automatically run Aegis evaluation on output log after completion (default: True)"
+        default=False,
+        help="Automatically run Aegis evaluation on output log after completion (default: False)"
     )
     return parser.parse_args()
 
