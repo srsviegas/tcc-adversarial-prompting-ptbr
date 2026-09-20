@@ -91,6 +91,12 @@ Examples:
         default=None,
         help="Max concurrent worker threads (default: auto)"
     )
+    parser.add_argument(
+        "--eval-aegis",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Automatically run Aegis evaluation on output log after completion (default: True)"
+    )
     return parser.parse_args()
 
 
@@ -134,6 +140,7 @@ def main():
         sleep=0.0,
         max_workers=args.max_workers,
         filter_label=final_filter,
+        eval_aegis=args.eval_aegis,
     )
 
 

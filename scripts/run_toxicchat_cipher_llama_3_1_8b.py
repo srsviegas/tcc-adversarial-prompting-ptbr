@@ -85,6 +85,12 @@ Examples:
         default=1,
         help="Number of iterations per prompt (default: 1)"
     )
+    parser.add_argument(
+        "--eval-aegis",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Automatically run Aegis evaluation on output log after completion (default: True)"
+    )
     return parser.parse_args()
 
 
@@ -129,6 +135,7 @@ def main():
         max_output_tokens=8192,
         sleep=0.0,
         filter_label=final_filter,
+        eval_aegis=args.eval_aegis,
     )
 
 

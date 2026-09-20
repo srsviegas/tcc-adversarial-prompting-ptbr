@@ -58,6 +58,7 @@ def run_benchmark(
     api_keys: Optional[Union[str, List[str]]] = None,
     max_workers: Optional[int] = None,
     filter_label: str = "all",
+    eval_aegis: bool = True,
 ):
     if dataset_type in ("toxicchat_cipher", "toxicchat_obfuscation"):
         cipher_types = [
@@ -67,8 +68,9 @@ def run_benchmark(
             "toxicchat_leetspeak",
             "toxicchat_caesar",
         ]
+        all_logs = []
         for c_type in cipher_types:
-            run_benchmark(
+            logs = run_benchmark(
                 dataset_path=dataset_path,
                 dataset_type=c_type,
                 provider=provider,
@@ -83,8 +85,11 @@ def run_benchmark(
                 api_keys=api_keys,
                 max_workers=max_workers,
                 filter_label=filter_label,
+                eval_aegis=eval_aegis,
             )
-        return
+            if logs:
+                all_logs.extend(logs)
+        return all_logs
 
     if provider == "local" and model == "gemini-3.5-flash-lite":
         model = "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
@@ -377,6 +382,32 @@ def run_benchmark(
         elapsed_time_sec=total_time,
     )
 
+    log_filepath_str = str(logger.log_filepath)
+    if eval_aegis:
+        _run_aegis_on_log(log_filepath_str)
+
+    return [log_filepath_str]
+
+
+def _run_aegis_on_log(log_filepath: str) -> None:
+    """Invokes scripts/evaluate_aegis.py on the given log file in an isolated subprocess."""
+    import subprocess
+    eval_script = Path(__file__).resolve().parent.parent / "scripts" / "evaluate_aegis.py"
+    if not eval_script.exists():
+        return
+
+    log_name = Path(log_filepath).name
+    print(f"\n{'='*75}")
+    print(f"[*] Automatically evaluating safety with Aegis on: {log_name}")
+    print(f"{'='*75}\n")
+
+    try:
+        subprocess.run([sys.executable, str(eval_script), str(log_filepath)], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"\n[!] Aegis evaluation process exited with error code {e.returncode} for {log_name}")
+    except Exception as e:
+        print(f"\n[!] Could not run Aegis evaluation for {log_name}: {e}")
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run LLM Prompt Injection Benchmarks")
@@ -394,6 +425,7 @@ def parse_args():
     parser.add_argument("--api-keys", type=str, nargs="+", default=None, help="List of Gemini API keys for rotation")
     parser.add_argument("--max-workers", type=int, default=None, help="Number of concurrent worker threads (default: matches available API keys for Gemini, or 1 for local)")
     parser.add_argument("--filter-label", type=str, default="all", choices=["all", "malicious", "jailbreak", "benign", "toxic"], help="Filter ToxicChat dataset rows by label ('all', 'malicious', 'jailbreak', 'benign', 'toxic')")
+    parser.add_argument("--eval-aegis", action=argparse.BooleanOptionalAction, default=True, help="Automatically run Aegis evaluation on output log after completion (default: True)")
     return parser.parse_args()
 
 
@@ -414,6 +446,7 @@ def main():
         api_keys=api_keys,
         max_workers=args.max_workers,
         filter_label=args.filter_label,
+        eval_aegis=args.eval_aegis,
     )
 
 
