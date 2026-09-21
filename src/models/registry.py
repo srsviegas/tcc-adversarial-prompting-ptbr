@@ -11,7 +11,10 @@ from src.models.qwen import (
     Qwen3Provider,
     Qwen25Coder32BAbliteratedProvider,
 )
-from src.models.gemma import Gemma4Provider
+from src.models.gemma import (
+    Gemma4Provider,
+    Gemma227BAbliteratedProvider,
+)
 
 
 class ProviderRegistry:
@@ -81,6 +84,21 @@ class ProviderRegistry:
         "gemma-12b": Gemma4Provider,
         "gemma_12b": Gemma4Provider,
         "local_gemma": Gemma4Provider,
+        "gemma2": Gemma227BAbliteratedProvider,
+        "gemma-2": Gemma227BAbliteratedProvider,
+        "gemma2_27b": Gemma227BAbliteratedProvider,
+        "gemma-2-27b": Gemma227BAbliteratedProvider,
+        "gemma_27b": Gemma227BAbliteratedProvider,
+        "gemma-27b": Gemma227BAbliteratedProvider,
+        "gemma2_27b_abliterated": Gemma227BAbliteratedProvider,
+        "gemma-2-27b-abliterated": Gemma227BAbliteratedProvider,
+        "gemma-2-27b-it-abliterated": Gemma227BAbliteratedProvider,
+        "gemma2_27b_it_abliterated": Gemma227BAbliteratedProvider,
+        "gemma_27b_abliterated": Gemma227BAbliteratedProvider,
+        "gemma-27b-abliterated": Gemma227BAbliteratedProvider,
+        "gemma_abliterated": Gemma227BAbliteratedProvider,
+        "gemma-abliterated": Gemma227BAbliteratedProvider,
+        "abliterated_gemma": Gemma227BAbliteratedProvider,
     }
 
     @classmethod

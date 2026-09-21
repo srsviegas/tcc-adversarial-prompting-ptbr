@@ -17,6 +17,9 @@ _CURRENT_GEMMA_MODEL_PATH = None
 DEFAULT_GEMMA_MODEL_FILENAME = "gemma-4-12B-it-Q4_K_M.gguf"
 DEFAULT_GEMMA_MODEL_PATH = f"models/{DEFAULT_GEMMA_MODEL_FILENAME}"
 
+DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_FILENAME = "gemma-2-27b-it-abliterated.Q5_K_M.gguf"
+DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_PATH = f"models/{DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_FILENAME}"
+
 GEMMA_ALIASES = {
     "gemma",
     "gemma4",
@@ -31,6 +34,24 @@ GEMMA_ALIASES = {
     "local_gemma",
 }
 
+GEMMA_27B_ALIASES = {
+    "gemma2",
+    "gemma-2",
+    "gemma2_27b",
+    "gemma-2-27b",
+    "gemma_27b",
+    "gemma-27b",
+    "gemma2_27b_abliterated",
+    "gemma-2-27b-abliterated",
+    "gemma-2-27b-it-abliterated",
+    "gemma2_27b_it_abliterated",
+    "gemma_27b_abliterated",
+    "gemma-27b-abliterated",
+    "gemma_abliterated",
+    "gemma-abliterated",
+    "abliterated_gemma",
+}
+
 # Alternative variations for filename resolution
 ALTERNATIVE_GEMMA_FILENAMES = [
     "gemma-4-12B-it-Q4_K_M.gguf",
@@ -39,6 +60,7 @@ ALTERNATIVE_GEMMA_FILENAMES = [
     "gemma-4-12b-Q4_K_M.gguf",
     "gemma-4-12B-it.gguf",
     "gemma-3-12b-it-Q4_K_M.gguf",
+    "gemma-2-27b-it-abliterated.Q5_K_M.gguf",
 ]
 
 
@@ -63,6 +85,15 @@ def resolve_gemma_model_path(model_name: Optional[str] = None) -> str:
     """
     Resolves Gemma model path, checking aliases, raw path, relative path, and ./models directory.
     """
+    if model_name and model_name.strip().lower() in GEMMA_27B_ALIASES:
+        default_27b_p = Path(DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_PATH)
+        if default_27b_p.is_file():
+            return str(default_27b_p.resolve())
+        in_models = Path("models") / DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_FILENAME
+        if in_models.is_file():
+            return str(in_models.resolve())
+        return DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_PATH
+
     if not model_name or model_name.strip().lower() in GEMMA_ALIASES:
         default_p = Path(DEFAULT_GEMMA_MODEL_PATH)
         if default_p.is_file():
@@ -86,6 +117,21 @@ def resolve_gemma_model_path(model_name: Optional[str] = None) -> str:
         return str(models_dir_basename.resolve())
 
     return model_name
+
+
+def resolve_gemma_27b_model_path(model_name: Optional[str] = None) -> str:
+    """
+    Resolves Gemma 2 27B-it Abliterated model path specifically.
+    """
+    if not model_name or model_name.strip().lower() in GEMMA_27B_ALIASES or model_name.strip().lower() in GEMMA_ALIASES:
+        default_27b_p = Path(DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_PATH)
+        if default_27b_p.is_file():
+            return str(default_27b_p.resolve())
+        in_models = Path("models") / DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_FILENAME
+        if in_models.is_file():
+            return str(in_models.resolve())
+        return DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_PATH
+    return resolve_gemma_model_path(model_name)
 
 
 def get_or_load_gemma(
@@ -255,3 +301,62 @@ def call_gemma4(
 
 
 call_gemma = call_gemma4
+
+
+class Gemma227BAbliteratedProvider(Gemma4Provider):
+    """Provider implementation for gemma-2-27b-it-abliterated.Q5_K_M.gguf via llama-cpp-python."""
+
+    def generate(
+        self,
+        model_name: str = DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_PATH,
+        system_prompt: str = "",
+        user_prompt: str = "",
+        temperature: float = 0.6,
+        top_p: float = 0.95,
+        max_output_tokens: int = 8192,
+        seed: Optional[int] = None,
+        api_key: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        return super().generate(
+            model_name=model_name,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=max_output_tokens,
+            seed=seed,
+            api_key=api_key,
+            **kwargs,
+        )
+
+
+Gemma27BProvider = Gemma227BAbliteratedProvider
+Gemma27BAbliteratedProvider = Gemma227BAbliteratedProvider
+GemmaAbliteratedProvider = Gemma227BAbliteratedProvider
+
+
+def call_gemma_27b(
+    model_name: str = DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_PATH,
+    system_prompt: str = "",
+    user_prompt: str = "",
+    temperature: float = 0.6,
+    top_p: float = 0.95,
+    max_output_tokens: int = 8192,
+    seed: Optional[int] = None,
+    api_key: Optional[str] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    provider = Gemma227BAbliteratedProvider()
+    return provider.generate(
+        model_name=model_name,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        temperature=temperature,
+        top_p=top_p,
+        max_output_tokens=max_output_tokens,
+        seed=seed,
+        api_key=api_key,
+        **kwargs,
+    )
+

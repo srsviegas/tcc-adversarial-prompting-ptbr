@@ -77,6 +77,21 @@ py -m huggingface_hub.cli.hf download bartowski/Llama-3.3-70B-Instruct-abliterat
 hf download bartowski/Llama-3.3-70B-Instruct-abliterated-GGUF Llama-3.3-70B-Instruct-abliterated-Q4_K_M.gguf --local-dir ./models
 ```
 
+## Google Gemma 2 27B-it (Abliterated) Q5_K_M
+
+- **Original Model:** https://huggingface.co/google/gemma-2-27b-it
+- **GGUF Model (Abliterated):** https://huggingface.co/mradermacher/gemma-2-27b-it-abliterated-GGUF
+- **File:** `gemma-2-27b-it-abliterated.Q5_K_M.gguf`
+
+```bash
+py -m pip install huggingface_hub
+
+py -m huggingface_hub.cli.hf download mradermacher/gemma-2-27b-it-abliterated-GGUF gemma-2-27b-it-abliterated.Q5_K_M.gguf --local-dir ./models
+
+## Or,
+hf download mradermacher/gemma-2-27b-it-abliterated-GGUF gemma-2-27b-it-abliterated.Q5_K_M.gguf --local-dir ./models
+```
+
 ## NVIDIA Aegis AI Content Safety LlamaGuard Defensive 1.0
 
 - **Base Model:** https://huggingface.co/meta-llama/LlamaGuard-7b (Gated, requires accepting Llama license)

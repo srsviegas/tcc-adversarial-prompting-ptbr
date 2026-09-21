@@ -142,6 +142,13 @@ def run_benchmark(
         "qwen_coder_32b_abliterated", "qwen_coder_abliterated", "qwen_abliterated", "qwen-abliterated", "abliterated_coder",
     ) and model == "gemini-3.5-flash-lite":
         model = "models/Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf"
+    elif provider in (
+        "gemma2", "gemma-2", "gemma2_27b", "gemma-2-27b", "gemma_27b", "gemma-27b",
+        "gemma2_27b_abliterated", "gemma-2-27b-abliterated", "gemma-2-27b-it-abliterated",
+        "gemma2_27b_it_abliterated", "gemma_27b_abliterated", "gemma-27b-abliterated",
+        "gemma_abliterated", "gemma-abliterated", "abliterated_gemma",
+    ) and model == "gemini-3.5-flash-lite":
+        model = "models/gemma-2-27b-it-abliterated.Q5_K_M.gguf"
     elif provider in ("gemma", "gemma4", "gemma-4", "gemma_4", "gemma4_12b", "gemma4-12b", "gemma-4-12b", "gemma_4_12b", "gemma-12b", "gemma_12b", "local_gemma") and model == "gemini-3.5-flash-lite":
         model = "models/gemma-4-12B-it-Q4_K_M.gguf"
     model_short_name = Path(model).name if ("/" in model or "\\" in model or ":" in model) else model

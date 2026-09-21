@@ -118,6 +118,102 @@ class TestGemma4(unittest.TestCase):
             self.assertFalse(res["error_log"]["failed"])
             self.assertEqual(res["output"]["extracted_text"], "Resposta do Gemma 4")
 
+    def test_gemma_27b_alias_and_resolution(self):
+        from src.models.gemma import (
+            DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_FILENAME,
+            resolve_gemma_27b_model_path,
+            Gemma227BAbliteratedProvider,
+            Gemma27BProvider,
+            GemmaAbliteratedProvider,
+            call_gemma_27b,
+        )
+
+        self.assertIs(Gemma27BProvider, Gemma227BAbliteratedProvider)
+        self.assertIs(GemmaAbliteratedProvider, Gemma227BAbliteratedProvider)
+
+        for alias in [
+            "gemma2",
+            "gemma-2",
+            "gemma2_27b",
+            "gemma-2-27b",
+            "gemma_27b_abliterated",
+            "gemma-2-27b-it-abliterated",
+            "abliterated_gemma",
+        ]:
+            resolved = resolve_gemma_27b_model_path(alias)
+            self.assertIn(DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_FILENAME, resolved)
+
+        res_none = resolve_gemma_27b_model_path(None)
+        self.assertIn(DEFAULT_GEMMA_2_27B_ABLITERATED_MODEL_FILENAME, res_none)
+
+    @patch("src.models.gemma.get_or_load_gemma")
+    def test_gemma_27b_provider_success_mocked(self, mock_load):
+        from src.models.gemma import call_gemma_27b
+
+        mock_llm = MagicMock()
+        mock_load.return_value = mock_llm
+
+        mock_llm.create_chat_completion.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "Resposta do Gemma 2 27B Abliterated."
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 12,
+                "completion_tokens": 20,
+                "total_tokens": 32,
+            },
+        }
+
+        res = call_gemma_27b(
+            user_prompt="Teste direto",
+            system_prompt="Sistema",
+        )
+
+        self.assertFalse(res["error_log"]["failed"])
+        self.assertEqual(
+            res["output"]["extracted_text"],
+            "Resposta do Gemma 2 27B Abliterated.",
+        )
+        self.assertEqual(res["execution_metrics"]["input_tokens"], 12)
+        self.assertEqual(res["execution_metrics"]["output_tokens"], 20)
+
+    @patch("src.models.gemma.get_or_load_gemma")
+    def test_generate_response_dispatch_gemma_27b(self, mock_load):
+        mock_llm = MagicMock()
+        mock_load.return_value = mock_llm
+
+        mock_llm.create_chat_completion.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "Despacho Gemma 2 27B OK"
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 8,
+                "completion_tokens": 10,
+                "total_tokens": 18,
+            },
+        }
+
+        for provider_name in ["gemma2", "gemma2_27b", "gemma_27b_abliterated", "abliterated_gemma"]:
+            res = generate_response(
+                model_provider=provider_name,
+                api_key=None,
+                model_name="gemma-2-27b-it-abliterated.Q5_K_M.gguf",
+                system_prompt="sys",
+                user_prompt="test",
+            )
+            self.assertFalse(res["error_log"]["failed"])
+            self.assertEqual(res["output"]["extracted_text"], "Despacho Gemma 2 27B OK")
+
 
 if __name__ == "__main__":
     unittest.main()

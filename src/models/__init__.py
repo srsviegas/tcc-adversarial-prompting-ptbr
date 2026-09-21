@@ -3,7 +3,16 @@ from typing import Any, Dict, Optional
 from src.models.base import BaseModelProvider, extract_thought_process
 from src.models.deepseek_r1 import DeepSeekR1Provider, call_deepseek_r1
 from src.models.gemini import GeminiProvider, call_gemini
-from src.models.gemma import Gemma4Provider, GemmaProvider, call_gemma4, call_gemma
+from src.models.gemma import (
+    Gemma4Provider,
+    GemmaProvider,
+    Gemma227BAbliteratedProvider,
+    Gemma27BProvider,
+    GemmaAbliteratedProvider,
+    call_gemma4,
+    call_gemma,
+    call_gemma_27b,
+)
 from src.models.local_llama import (
     LocalLlamaProvider,
     Llama3370BAbliteratedProvider,
@@ -60,6 +69,9 @@ __all__ = [
     "GeminiProvider",
     "Gemma4Provider",
     "GemmaProvider",
+    "Gemma227BAbliteratedProvider",
+    "Gemma27BProvider",
+    "GemmaAbliteratedProvider",
     "LocalLlamaProvider",
     "Llama3370BAbliteratedProvider",
     "Llama70BProvider",
@@ -74,6 +86,7 @@ __all__ = [
     "call_gemini",
     "call_gemma",
     "call_gemma4",
+    "call_gemma_27b",
     "call_local_llama",
     "call_llama_70b",
     "call_qwen",
