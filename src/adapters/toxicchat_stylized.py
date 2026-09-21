@@ -150,7 +150,7 @@ ACTIVE_STYLES: List[str] = [
     "script",             # 3
     "double_struck",      # 4
     "fullwidth",          # 5
-    "regional_indicator", # 6
+    # "regional_indicator", # 6
     "bold",               # 7
     "sans_bold_italic",   # 8
 ]

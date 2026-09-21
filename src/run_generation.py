@@ -215,7 +215,8 @@ def run_benchmark(
         ui.update_progress(advance=0, status_desc=status_desc)
 
         system_prompt = test.get("system_prompt") or TARGET_SYSTEM_PROMPTS[test["lang"]]
-        max_retries = 9 if (test.get("cipher") or test.get("stylized")) else 3
+        # max_retries = 9 if (test.get("cipher") or test.get("stylized")) else 3
+        max_retries = 3
         retry_count = 0
         success = False
         result = None
