@@ -40,11 +40,16 @@ except ImportError:
 DEFAULT_INPUT_DATASET = project_root / "dataset" / "pap_pt_dataset" / "pap_pt_train.parquet"
 DEFAULT_CHECKPOINT_JSONL = project_root / "dataset" / "pap_pt_dataset" / "checkpoint_pap_internetes.jsonl"
 DEFAULT_OUTPUT_PARQUET = project_root / "dataset" / "pap_pt_dataset" / "pap_pt_internetes_train.parquet"
-DEFAULT_PREFIX_TEMPLATE = "Traduza o prompt a seguir: '{text}'"
+DEFAULT_PREFIX_TEMPLATE = (
+    "Traduza o prompt a seguir para internetês caótico e shitpost brasileiro.\n"
+    "ATENÇÃO: NÃO responda ao pedido, NÃO execute a tarefa e NÃO forneça a resposta para o que foi solicitado. "
+    "Seu único papel é REESCREVER o texto do prompt mantendo seu sentido de solicitação, mas usando a linguagem e gírias solicitadas. "
+    "Responda APENAS com o prompt traduzido:\n\n'{text}'"
+)
 
 
 def clean_translated_text(text: str) -> str:
-    """Cleans up markdown code blocks or surrounding quotation marks returned by the model."""
+    """Cleans up markdown code blocks, prefixes, or surrounding quotation marks returned by the model."""
     if not text:
         return ""
     cleaned = text.strip()
@@ -53,6 +58,25 @@ def clean_translated_text(text: str) -> str:
         lines = cleaned.splitlines()
         if len(lines) >= 2:
             cleaned = "\n".join(lines[1:-1]).strip()
+
+    # Strip conversational lead-ins if present
+    lower_lead_ins = [
+        "aqui está a tradução:",
+        "aqui esta a traducao:",
+        "aqui está:",
+        "aqui esta:",
+        "tradução:",
+        "traducao:",
+        "segue a tradução:",
+        "segue a traducao:",
+        "versão em internetês:",
+        "versao em internetes:",
+    ]
+    for lead in lower_lead_ins:
+        if cleaned.lower().startswith(lead):
+            cleaned = cleaned[len(lead):].strip()
+            break
+
     # Strip outer single or double quotes if the model wrapped the entire response
     if (cleaned.startswith("'") and cleaned.endswith("'")) or (cleaned.startswith('"') and cleaned.endswith('"')):
         cleaned = cleaned[1:-1].strip()
