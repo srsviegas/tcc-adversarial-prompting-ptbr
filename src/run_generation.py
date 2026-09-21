@@ -275,10 +275,10 @@ def run_benchmark(
                         if key_rotator and key_rotator.is_multi_key:
                             current_api_key = key_rotator.get_next_key()
                             next_masked = KeyRotator.mask_key(current_api_key)
-                            wait_time = 1
+                            wait_time = 0
                             ui.log_warning(f"Rate limit (429/RPM) on key {masked} [{raw_err_msg[:80]}...]. Rotated to next key ({next_masked}). Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         else:
-                            wait_time = 4
+                            wait_time = 0
                             ui.log_warning(f"Rate limit (429/RPM) on key {masked} [{raw_err_msg[:80]}...]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                     elif "503" in error_msg or "unavailable" in error_msg or "high demand" in error_msg or "overloaded" in error_msg:
@@ -286,7 +286,7 @@ def run_benchmark(
                         ui.log_warning(f"Model busy/unavailable (503). Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                     else:
-                        wait_time = 1
+                        wait_time = 2
                         ui.log_warning(f"Generation error [{raw_err_msg[:80]}]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                     continue
@@ -314,7 +314,7 @@ def run_benchmark(
                     result["error_log"]["error_message"] = decode_err_msg
 
                     if retry_count < max_retries:
-                        wait_time = 2
+                        wait_time = 0
                         ui.log_warning(f"Row #{index} {decode_err_msg}. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                         continue
