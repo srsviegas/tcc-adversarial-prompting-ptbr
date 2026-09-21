@@ -4,7 +4,14 @@ from src.models.base import BaseModelProvider, extract_thought_process
 from src.models.deepseek_r1 import DeepSeekR1Provider, call_deepseek_r1
 from src.models.gemini import GeminiProvider, call_gemini
 from src.models.gemma import Gemma4Provider, GemmaProvider, call_gemma4, call_gemma
-from src.models.local_llama import LocalLlamaProvider, call_local_llama
+from src.models.local_llama import (
+    LocalLlamaProvider,
+    Llama3370BAbliteratedProvider,
+    Llama70BProvider,
+    LlamaAbliteratedProvider,
+    call_local_llama,
+    call_llama_70b,
+)
 from src.models.qwen import (
     Qwen3Provider,
     QwenProvider,
@@ -54,6 +61,9 @@ __all__ = [
     "Gemma4Provider",
     "GemmaProvider",
     "LocalLlamaProvider",
+    "Llama3370BAbliteratedProvider",
+    "Llama70BProvider",
+    "LlamaAbliteratedProvider",
     "ProviderRegistry",
     "Qwen3Provider",
     "QwenProvider",
@@ -65,6 +75,7 @@ __all__ = [
     "call_gemma",
     "call_gemma4",
     "call_local_llama",
+    "call_llama_70b",
     "call_qwen",
     "call_qwen3",
     "call_qwen_coder",

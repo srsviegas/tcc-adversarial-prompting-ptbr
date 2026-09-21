@@ -31,6 +31,9 @@ class TestModelsModule(unittest.TestCase):
         llama_p = ProviderRegistry.get_provider("llama")
         self.assertIsInstance(llama_p, LocalLlamaProvider)
 
+        llama70b_p = ProviderRegistry.get_provider("llama3.3_70b_abliterated")
+        self.assertIsInstance(llama70b_p, LocalLlamaProvider)
+
         deepseek_p = ProviderRegistry.get_provider("deepseek")
         self.assertIsInstance(deepseek_p, DeepSeekR1Provider)
 
@@ -212,6 +215,31 @@ class TestModelsModule(unittest.TestCase):
             self.assertTrue(res["error_log"]["failed"])
             self.assertIn("llama-cpp-python", res["error_log"]["error_message"])
 
+    def test_llama_70b_model_path_resolution(self):
+        from src.models.local_llama import (
+            DEFAULT_LLAMA_3_3_70B_ABLITERATED_MODEL_FILENAME,
+            resolve_llama_70b_model_path,
+        )
+        for alias in ["llama3.3", "llama-3.3-70b", "llama3.3_70b_abliterated", "abliterated_llama"]:
+            resolved = resolve_llama_70b_model_path(alias)
+            self.assertIn(DEFAULT_LLAMA_3_3_70B_ABLITERATED_MODEL_FILENAME, resolved)
+
+        resolved_none = resolve_llama_70b_model_path(None)
+        self.assertIn(DEFAULT_LLAMA_3_3_70B_ABLITERATED_MODEL_FILENAME, resolved_none)
+
+    def test_llama_70b_script_instruction_resolution(self):
+        from scripts.prompt_llama_3_3_70b_abliterated import resolve_instruction
+        from src.prompts import INTERNETES_SYSTEM_PROMPT
+
+        key, prompt = resolve_instruction("internetes")
+        self.assertEqual(key, "internetes")
+        self.assertEqual(prompt, INTERNETES_SYSTEM_PROMPT)
+
+        key2, prompt2 = resolve_instruction("base64", lang="pt-BR")
+        self.assertEqual(key2, "base64")
+        self.assertIn("BASE64", prompt2)
+
 
 if __name__ == "__main__":
     unittest.main()
+

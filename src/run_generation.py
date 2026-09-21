@@ -120,7 +120,15 @@ def run_benchmark(
                 all_logs.extend(logs)
         return all_logs
 
-    if provider == "local" and model == "gemini-3.5-flash-lite":
+    if provider in (
+        "llama3.3", "llama-3.3", "llama3.3_70b", "llama-3.3-70b",
+        "llama_70b", "llama-70b", "llama3.3_70b_abliterated", "llama-3.3-70b-abliterated",
+        "llama3.3_70b_instruct_abliterated", "llama-3.3-70b-instruct-abliterated",
+        "llama_70b_abliterated", "llama-70b-abliterated", "llama3_3_70b_abliterated",
+        "llama_abliterated", "llama-abliterated", "abliterated_llama",
+    ) and model == "gemini-3.5-flash-lite":
+        model = "models/Llama-3.3-70B-Instruct-abliterated-Q4_K_M.gguf"
+    elif provider == "local" and model == "gemini-3.5-flash-lite":
         model = "models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
     elif provider in ("deepseek", "deepseek_r1", "deepseek-r1", "r1") and model == "gemini-3.5-flash-lite":
         model = "models/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf"

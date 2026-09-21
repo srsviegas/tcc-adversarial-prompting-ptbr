@@ -62,6 +62,21 @@ py -m huggingface_hub.cli.hf download bartowski/Qwen2.5-Coder-32B-Instruct-ablit
 hf download bartowski/Qwen2.5-Coder-32B-Instruct-abliterated-GGUF Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf --local-dir ./models
 ```
 
+## Llama 3.3 70B Instruct (Abliterated) Q4_K_M
+
+- **Original Model:** https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct
+- **GGUF Model (Abliterated):** https://huggingface.co/bartowski/Llama-3.3-70B-Instruct-abliterated-GGUF
+- **File:** `Llama-3.3-70B-Instruct-abliterated-Q4_K_M.gguf`
+
+```bash
+py -m pip install huggingface_hub
+
+py -m huggingface_hub.cli.hf download bartowski/Llama-3.3-70B-Instruct-abliterated-GGUF Llama-3.3-70B-Instruct-abliterated-Q4_K_M.gguf --local-dir ./models
+
+## Or,
+hf download bartowski/Llama-3.3-70B-Instruct-abliterated-GGUF Llama-3.3-70B-Instruct-abliterated-Q4_K_M.gguf --local-dir ./models
+```
+
 ## NVIDIA Aegis AI Content Safety LlamaGuard Defensive 1.0
 
 - **Base Model:** https://huggingface.co/meta-llama/LlamaGuard-7b (Gated, requires accepting Llama license)

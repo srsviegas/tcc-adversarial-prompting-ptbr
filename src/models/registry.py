@@ -3,7 +3,10 @@ from typing import Dict, Type
 from src.models.base import BaseModelProvider
 from src.models.deepseek_r1 import DeepSeekR1Provider
 from src.models.gemini import GeminiProvider
-from src.models.local_llama import LocalLlamaProvider
+from src.models.local_llama import (
+    LocalLlamaProvider,
+    Llama3370BAbliteratedProvider,
+)
 from src.models.qwen import (
     Qwen3Provider,
     Qwen25Coder32BAbliteratedProvider,
@@ -19,6 +22,22 @@ class ProviderRegistry:
         "local": LocalLlamaProvider,
         "llama": LocalLlamaProvider,
         "local_llama": LocalLlamaProvider,
+        "llama3.3": Llama3370BAbliteratedProvider,
+        "llama-3.3": Llama3370BAbliteratedProvider,
+        "llama3.3_70b": Llama3370BAbliteratedProvider,
+        "llama-3.3-70b": Llama3370BAbliteratedProvider,
+        "llama_70b": Llama3370BAbliteratedProvider,
+        "llama-70b": Llama3370BAbliteratedProvider,
+        "llama3.3_70b_abliterated": Llama3370BAbliteratedProvider,
+        "llama-3.3-70b-abliterated": Llama3370BAbliteratedProvider,
+        "llama3.3_70b_instruct_abliterated": Llama3370BAbliteratedProvider,
+        "llama-3.3-70b-instruct-abliterated": Llama3370BAbliteratedProvider,
+        "llama_70b_abliterated": Llama3370BAbliteratedProvider,
+        "llama-70b-abliterated": Llama3370BAbliteratedProvider,
+        "llama3_3_70b_abliterated": Llama3370BAbliteratedProvider,
+        "llama_abliterated": Llama3370BAbliteratedProvider,
+        "llama-abliterated": Llama3370BAbliteratedProvider,
+        "abliterated_llama": Llama3370BAbliteratedProvider,
         "deepseek": DeepSeekR1Provider,
         "deepseek_r1": DeepSeekR1Provider,
         "deepseek-r1": DeepSeekR1Provider,
