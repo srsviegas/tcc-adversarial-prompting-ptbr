@@ -182,6 +182,13 @@ class TestGemma4(unittest.TestCase):
         self.assertEqual(res["execution_metrics"]["input_tokens"], 12)
         self.assertEqual(res["execution_metrics"]["output_tokens"], 20)
 
+        # Verify Gemma does not receive "role": "system" in messages
+        called_messages = mock_llm.create_chat_completion.call_args[1]["messages"]
+        self.assertEqual(len(called_messages), 1)
+        self.assertEqual(called_messages[0]["role"], "user")
+        self.assertIn("Sistema\n\nTeste direto", called_messages[0]["content"])
+        self.assertNotIn("system", [m["role"] for m in called_messages])
+
     @patch("src.models.gemma.get_or_load_gemma")
     def test_generate_response_dispatch_gemma_27b(self, mock_load):
         mock_llm = MagicMock()

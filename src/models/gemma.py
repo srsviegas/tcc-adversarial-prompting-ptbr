@@ -232,8 +232,12 @@ class Gemma4Provider(BaseModelProvider):
 
             messages = []
             if system_prompt and system_prompt.strip():
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": user_prompt})
+                # Gemma chat templates do not support the "system" role and raise an error
+                # ("System role not supported"). Per Google specifications, prepend system instructions to the user prompt.
+                effective_user_prompt = f"{system_prompt.strip()}\n\n{user_prompt}"
+                messages.append({"role": "user", "content": effective_user_prompt})
+            else:
+                messages.append({"role": "user", "content": user_prompt})
 
             response = llm.create_chat_completion(
                 messages=messages,
