@@ -59,6 +59,7 @@ def run_benchmark(
     max_workers: Optional[int] = None,
     filter_label: str = "all",
     eval_aegis: bool = True,
+    max_rows: Optional[int] = None,
 ):
     if dataset_type in ("toxicchat_cipher", "toxicchat_obfuscation"):
         cipher_types = [
@@ -86,6 +87,34 @@ def run_benchmark(
                 max_workers=max_workers,
                 filter_label=filter_label,
                 eval_aegis=eval_aegis,
+                max_rows=max_rows,
+            )
+            if logs:
+                all_logs.extend(logs)
+        return all_logs
+
+    if dataset_type in ("toxicchat_stylized", "toxicchat_fancy"):
+        from src.adapters.toxicchat_stylized import get_active_dataset_types
+        stylized_types = get_active_dataset_types()
+        all_logs = []
+        for s_type in stylized_types:
+            logs = run_benchmark(
+                dataset_path=dataset_path,
+                dataset_type=s_type,
+                provider=provider,
+                model=model,
+                iterations=iterations,
+                temperature=temperature,
+                top_p=top_p,
+                max_output_tokens=max_output_tokens,
+                seed=seed,
+                sleep=sleep,
+                api_key=api_key,
+                api_keys=api_keys,
+                max_workers=max_workers,
+                filter_label=filter_label,
+                eval_aegis=eval_aegis,
+                max_rows=max_rows,
             )
             if logs:
                 all_logs.extend(logs)
@@ -126,6 +155,8 @@ def run_benchmark(
     except TypeError:
         adapter = get_adapter(dataset_type)
     df = adapter.format_data(df)
+    if max_rows is not None and max_rows > 0:
+        df = df.head(max_rows)
 
     log_filename = f"{provider}_{model_short_name}_{dataset_type}_eval.jsonl"
     logger = BenchmarkLogger(log_filename)
@@ -184,7 +215,7 @@ def run_benchmark(
         ui.update_progress(advance=0, status_desc=status_desc)
 
         system_prompt = test.get("system_prompt") or TARGET_SYSTEM_PROMPTS[test["lang"]]
-        max_retries = 9 if test.get("cipher") else 3
+        max_retries = 9 if (test.get("cipher") or test.get("stylized")) else 3
         retry_count = 0
         success = False
         result = None
@@ -244,10 +275,10 @@ def run_benchmark(
                         if key_rotator and key_rotator.is_multi_key:
                             current_api_key = key_rotator.get_next_key()
                             next_masked = KeyRotator.mask_key(current_api_key)
-                            wait_time = min(2 * retry_count, 30)
+                            wait_time = 1
                             ui.log_warning(f"Rate limit (429/RPM) on key {masked} [{raw_err_msg[:80]}...]. Rotated to next key ({next_masked}). Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         else:
-                            wait_time = min(30 * retry_count, 120)
+                            wait_time = 4
                             ui.log_warning(f"Rate limit (429/RPM) on key {masked} [{raw_err_msg[:80]}...]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                     elif "503" in error_msg or "unavailable" in error_msg or "high demand" in error_msg or "overloaded" in error_msg:
@@ -255,7 +286,7 @@ def run_benchmark(
                         ui.log_warning(f"Model busy/unavailable (503). Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                     else:
-                        wait_time = 3 * retry_count
+                        wait_time = 1
                         ui.log_warning(f"Generation error [{raw_err_msg[:80]}]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                     continue
@@ -283,12 +314,41 @@ def run_benchmark(
                     result["error_log"]["error_message"] = decode_err_msg
 
                     if retry_count < max_retries:
-                        wait_time = 2 * retry_count
+                        wait_time = 2
                         ui.log_warning(f"Row #{index} {decode_err_msg}. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                         continue
                     else:
                         ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) cipher decoding failed after {max_retries} attempts: {decode_err_msg}")
+                        break
+
+            # Handle stylized decoding if this is a stylized test
+            if test.get("stylized"):
+                raw_stylized_text = result["output"].get("extracted_text") or ""
+                result["output"]["stylized_text"] = raw_stylized_text
+                result["output"]["ciphered_text"] = raw_stylized_text
+
+                try:
+                    from src.adapters.toxicchat_stylized import decode_stylized
+                    decoded_text = decode_stylized(
+                        raw_stylized_text,
+                        style=test["stylized"],
+                        lang=test.get("lang", "en"),
+                    )
+                    result["output"]["extracted_text"] = decoded_text
+                except Exception as e:
+                    retry_count += 1
+                    decode_err_msg = f"Stylized decoding failed ({test['stylized']}): {e}"
+                    result["error_log"]["failed"] = True
+                    result["error_log"]["error_message"] = decode_err_msg
+
+                    if retry_count < max_retries:
+                        wait_time = 2
+                        ui.log_warning(f"Row #{index} {decode_err_msg}. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) stylized decoding failed after {max_retries} attempts: {decode_err_msg}")
                         break
 
             success = True
@@ -426,12 +486,15 @@ def parse_args():
     parser.add_argument("--max-workers", type=int, default=None, help="Number of concurrent worker threads (default: matches available API keys for Gemini, or 1 for local)")
     parser.add_argument("--filter-label", type=str, default="all", choices=["all", "malicious", "jailbreak", "benign", "toxic"], help="Filter ToxicChat dataset rows by label ('all', 'malicious', 'jailbreak', 'benign', 'toxic')")
     parser.add_argument("--eval-aegis", action=argparse.BooleanOptionalAction, default=True, help="Automatically run Aegis evaluation on output log after completion (default: True)")
+    parser.add_argument("--max-rows", type=int, default=None, help="Maximum number of dataset rows to process")
+    parser.add_argument("--test", action="store_true", default=False, help="Run test mode: first 10 rows of each type")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     api_keys = args.api_keys if args.api_keys else args.api_key
+    max_rows = 10 if args.test else args.max_rows
     run_benchmark(
         dataset_path=args.dataset,
         dataset_type=args.type,
@@ -447,6 +510,7 @@ def main():
         max_workers=args.max_workers,
         filter_label=args.filter_label,
         eval_aegis=args.eval_aegis,
+        max_rows=max_rows,
     )
 
 
