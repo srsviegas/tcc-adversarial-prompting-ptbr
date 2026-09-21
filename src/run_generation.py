@@ -312,14 +312,24 @@ def run_benchmark(
                     decode_err_msg = f"Cipher decoding failed ({test['cipher']}): {e}"
                     result["error_log"]["failed"] = True
                     result["error_log"]["error_message"] = decode_err_msg
+                    result["error_log"]["raw_output"] = raw_cipher_text
+
+                    raw_preview = raw_cipher_text.strip()
+                    if not raw_preview:
+                        out_snippet = "<empty output>"
+                    elif len(raw_preview) > 250:
+                        out_snippet = raw_preview[:250] + "..."
+                    else:
+                        out_snippet = raw_preview
+                    safe_snippet = out_snippet.replace("\n", "\\n").replace("[", "\\[").replace("]", "\\]")
 
                     if retry_count < max_retries:
                         wait_time = 0
-                        ui.log_warning(f"Row #{index} {decode_err_msg}. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
+                        ui.log_warning(f"Row #{index} {decode_err_msg} | Model output: [{safe_snippet}]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                         continue
                     else:
-                        ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) cipher decoding failed after {max_retries} attempts: {decode_err_msg}")
+                        ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) cipher decoding failed after {max_retries} attempts: {decode_err_msg} | Model output: [{safe_snippet}]")
                         break
 
             # Handle stylized decoding if this is a stylized test
@@ -341,14 +351,24 @@ def run_benchmark(
                     decode_err_msg = f"Stylized decoding failed ({test['stylized']}): {e}"
                     result["error_log"]["failed"] = True
                     result["error_log"]["error_message"] = decode_err_msg
+                    result["error_log"]["raw_output"] = raw_stylized_text
+
+                    raw_preview = raw_stylized_text.strip()
+                    if not raw_preview:
+                        out_snippet = "<empty output>"
+                    elif len(raw_preview) > 250:
+                        out_snippet = raw_preview[:250] + "..."
+                    else:
+                        out_snippet = raw_preview
+                    safe_snippet = out_snippet.replace("\n", "\\n").replace("[", "\\[").replace("]", "\\]")
 
                     if retry_count < max_retries:
                         wait_time = 2
-                        ui.log_warning(f"Row #{index} {decode_err_msg}. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
+                        ui.log_warning(f"Row #{index} {decode_err_msg} | Model output: [{safe_snippet}]. Retrying in {wait_time}s... (Attempt {retry_count}/{max_retries})")
                         time.sleep(wait_time)
                         continue
                     else:
-                        ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) stylized decoding failed after {max_retries} attempts: {decode_err_msg}")
+                        ui.log_error(f"Row #{index} ({test['lang'].upper()}/{test['style'].upper()} iter {iteration}) stylized decoding failed after {max_retries} attempts: {decode_err_msg} | Model output: [{safe_snippet}]")
                         break
 
             success = True
