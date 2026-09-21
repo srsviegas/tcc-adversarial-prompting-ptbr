@@ -4,7 +4,7 @@ import json
 import argparse
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -28,7 +28,6 @@ from src.prompts import INTERNETES_SYSTEM_PROMPT
 try:
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
     from rich.table import Table
     console = Console()
     HAS_RICH = True
@@ -40,12 +39,35 @@ except ImportError:
 DEFAULT_INPUT_DATASET = project_root / "dataset" / "pap_pt_dataset" / "pap_pt_train.parquet"
 DEFAULT_CHECKPOINT_JSONL = project_root / "dataset" / "pap_pt_dataset" / "checkpoint_pap_internetes.jsonl"
 DEFAULT_OUTPUT_PARQUET = project_root / "dataset" / "pap_pt_dataset" / "pap_pt_internetes_train.parquet"
+
 DEFAULT_PREFIX_TEMPLATE = (
     "Traduza o prompt a seguir para internetês caótico e shitpost brasileiro.\n"
     "ATENÇÃO: NÃO responda ao pedido, NÃO execute a tarefa e NÃO forneça a resposta para o que foi solicitado. "
     "Seu único papel é REESCREVER o texto do prompt mantendo seu sentido de solicitação, mas usando a linguagem e gírias solicitadas. "
     "Responda APENAS com o prompt traduzido:\n\n'{text}'"
 )
+
+REFUSAL_KEYWORDS = [
+    "não posso",
+    "nao posso",
+    "não consigo",
+    "nao consigo",
+    "não sou capaz",
+    "nao sou capaz",
+    "sinto muito",
+    "peço desculpas",
+    "peco desculpas",
+    "como um modelo de linguagem",
+    "como uma ia",
+    "como ia",
+    "minhas diretrizes",
+    "política de segurança",
+    "politica de seguranca",
+    "i cannot",
+    "i can't",
+    "as an ai",
+    "my safety guidelines",
+]
 
 
 def clean_translated_text(text: str) -> str:
@@ -91,37 +113,70 @@ def build_translation_prompt(text: str, prefix_template: str = DEFAULT_PREFIX_TE
     return f"{prefix_template.rstrip()} '{text_content}'"
 
 
-def load_existing_checkpoint(checkpoint_path: Path) -> Dict[int, Dict[str, Any]]:
+def parse_retry_indices(indices_arg: str) -> List[int]:
+    """Parses a comma-separated string of indices or ranges (e.g. '1,2,5-8,107') into a sorted list of ints."""
+    if not indices_arg or not str(indices_arg).strip():
+        return []
+    indices = set()
+    parts = str(indices_arg).replace(" ", "").split(",")
+    for part in parts:
+        if not part:
+            continue
+        if "-" in part:
+            sub = part.split("-")
+            if len(sub) == 2 and sub[0].isdigit() and sub[1].isdigit():
+                start, end = int(sub[0]), int(sub[1])
+                for idx in range(min(start, end), max(start, end) + 1):
+                    indices.add(idx)
+        elif part.isdigit():
+            indices.add(int(part))
+    return sorted(indices)
+
+
+def load_records(checkpoint_path: Path, parquet_path: Path) -> Dict[int, Dict[str, Any]]:
     """
-    Loads completed rows from the JSONL checkpoint file.
+    Loads completed records from the JSONL checkpoint file if available,
+    or falls back to loading from an existing Parquet file.
     Returns a dict mapping row_index (int) -> record dict.
     """
     completed_records = {}
-    if not checkpoint_path.exists():
-        return completed_records
 
-    with open(checkpoint_path, "r", encoding="utf-8") as fp:
-        for line_num, line in enumerate(fp):
-            line_str = line.strip()
-            if not line_str:
-                continue
-            try:
-                record = json.loads(line_str)
-                idx = record.get("row_index")
-                bad_q_internetes = record.get("bad_q_pt_internetes") or record.get("bad_q_internetes")
-                ss_prompt_internetes = record.get("ss_prompt_pt_internetes") or record.get("ss_prompt_internetes")
+    if checkpoint_path.exists():
+        with open(checkpoint_path, "r", encoding="utf-8") as fp:
+            for line_num, line in enumerate(fp):
+                line_str = line.strip()
+                if not line_str:
+                    continue
+                try:
+                    record = json.loads(line_str)
+                    idx = record.get("row_index")
+                    if idx is not None:
+                        completed_records[int(idx)] = record
+                except Exception as e:
+                    print(f"[!] Warning: Failed parsing line {line_num + 1} in checkpoint: {e}")
+        if completed_records:
+            return completed_records
 
-                # Verify both translations were successfully recorded and not empty
-                if idx is not None and bad_q_internetes and ss_prompt_internetes:
-                    completed_records[int(idx)] = record
-            except Exception as e:
-                print(f"[!] Warning: Failed parsing line {line_num + 1} in checkpoint: {e}")
+    # Fallback to existing parquet file if checkpoint JSONL does not exist
+    if parquet_path.exists():
+        try:
+            df = pd.read_parquet(parquet_path)
+            for idx, row in df.iterrows():
+                rec = row.to_dict()
+                row_idx = rec.get("row_index", idx)
+                completed_records[int(row_idx)] = rec
+        except Exception as e:
+            print(f"[!] Warning: Failed reading existing Parquet: {e}")
 
     return completed_records
 
 
+def load_existing_checkpoint(checkpoint_path: Path) -> Dict[int, Dict[str, Any]]:
+    return load_records(checkpoint_path, Path("nonexistent.parquet"))
+
+
 def append_record_to_checkpoint(checkpoint_path: Path, record: Dict[str, Any]) -> None:
-    """Appends a completed record as a single line JSON into the checkpoint file with flush."""
+    """Appends a single completed record into the checkpoint file with flush and sync."""
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(record, ensure_ascii=False) + "\n"
     with open(checkpoint_path, "a", encoding="utf-8") as fp:
@@ -130,32 +185,107 @@ def append_record_to_checkpoint(checkpoint_path: Path, record: Dict[str, Any]) -
         os.fsync(fp.fileno())
 
 
+def sync_all_records_to_checkpoint(records: Dict[int, Dict[str, Any]], checkpoint_path: Path) -> None:
+    """Overwrites the checkpoint JSONL file with all records sorted by row_index."""
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    sorted_records = [records[k] for k in sorted(records.keys())]
+    with open(checkpoint_path, "w", encoding="utf-8") as fp:
+        for rec in sorted_records:
+            fp.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        fp.flush()
+        os.fsync(fp.fileno())
+
+
+def detect_failed_rows(
+    records: Dict[int, Dict[str, Any]],
+    df_original: pd.DataFrame,
+) -> Dict[int, List[str]]:
+    """
+    Detects failed or problematic rows in the current records.
+    Returns a dict mapping row_index -> list of reason strings.
+    """
+    failed_rows = {}
+    total_original = len(df_original)
+
+    for row_idx in range(total_original):
+        orig_row = df_original.iloc[row_idx]
+        orig_bq = str(orig_row.get("bad_q_pt", "") or "").strip()
+        orig_ss = str(orig_row.get("ss_prompt_pt", "") or "").strip()
+
+        if row_idx not in records:
+            failed_rows[row_idx] = ["missing_from_records"]
+            continue
+
+        rec = records[row_idx]
+        trans_bq = str(rec.get("bad_q_pt_internetes") or rec.get("bad_q_internetes") or "").strip()
+        trans_ss = str(rec.get("ss_prompt_pt_internetes") or rec.get("ss_prompt_internetes") or "").strip()
+
+        reasons = []
+
+        # 1. Missing translation where original was present
+        if orig_bq and not trans_bq:
+            reasons.append("missing_bad_q")
+        if orig_ss and not trans_ss:
+            reasons.append("missing_ss_prompt")
+
+        # 2. Hallucination where original was empty
+        if not orig_ss and trans_ss:
+            reasons.append("hallucinated_empty_ss")
+
+        # 3. Copied/identical to original
+        if orig_bq and orig_bq.lower() == trans_bq.lower():
+            reasons.append("identical_bad_q")
+        if orig_ss and orig_ss.lower() == trans_ss.lower():
+            reasons.append("identical_ss_prompt")
+
+        # 4. Refusal detection
+        for kw in REFUSAL_KEYWORDS:
+            if kw in trans_bq.lower():
+                reasons.append(f"refusal_bad_q('{kw}')")
+                break
+        for kw in REFUSAL_KEYWORDS:
+            if kw in trans_ss.lower():
+                reasons.append(f"refusal_ss_prompt('{kw}')")
+                break
+
+        # 5. Explicit failure flag
+        if rec.get("failed") or rec.get("error"):
+            reasons.append("error_flagged")
+
+        if reasons:
+            failed_rows[row_idx] = reasons
+
+    return failed_rows
+
+
 def compile_checkpoint_to_parquet(
     checkpoint_path: Path,
     output_parquet_path: Path,
     expected_total_rows: Optional[int] = None,
+    records: Optional[Dict[int, Dict[str, Any]]] = None,
 ) -> pd.DataFrame:
-    """Compiles all records from the JSONL checkpoint into a Parquet file ordered by row_index."""
-    if not checkpoint_path.exists():
+    """Compiles records from in-memory dict or JSONL checkpoint into a Parquet file ordered by row_index."""
+    if records is not None and records:
+        record_list = [records[k] for k in sorted(records.keys())]
+    elif checkpoint_path.exists():
+        record_list = []
+        with open(checkpoint_path, "r", encoding="utf-8") as fp:
+            for line in fp:
+                line_str = line.strip()
+                if not line_str:
+                    continue
+                try:
+                    record_list.append(json.loads(line_str))
+                except json.JSONDecodeError:
+                    continue
+    else:
         raise FileNotFoundError(f"Checkpoint file not found at: {checkpoint_path}")
 
-    records = []
-    with open(checkpoint_path, "r", encoding="utf-8") as fp:
-        for line in fp:
-            line_str = line.strip()
-            if not line_str:
-                continue
-            try:
-                records.append(json.loads(line_str))
-            except json.JSONDecodeError:
-                continue
+    if not record_list:
+        raise ValueError(f"No valid records found to compile into Parquet.")
 
-    if not records:
-        raise ValueError(f"No valid records found in checkpoint: {checkpoint_path}")
+    df_out = pd.DataFrame(record_list)
 
-    df_out = pd.DataFrame(records)
-
-    # Sort by original row_index if available
     if "row_index" in df_out.columns:
         df_out = df_out.sort_values(by="row_index").reset_index(drop=True)
 
@@ -191,6 +321,9 @@ def translate_prompt(
     max_retries: int = 3,
 ) -> str:
     """Translates a single prompt using Gemma 2 27B abliterated and INTERNETES_SYSTEM_PROMPT."""
+    if not text or not str(text).strip():
+        return ""
+
     user_prompt = build_translation_prompt(text, prefix_template=prefix_template)
 
     for attempt in range(1, max_retries + 1):
@@ -216,6 +349,38 @@ def translate_prompt(
         time.sleep(1.5 * attempt)
 
     raise RuntimeError(f"Failed translating prompt after {max_retries} attempts: {text[:60]}...")
+
+
+def print_failed_inspection(failed_rows: Dict[int, List[str]], records: Dict[int, Dict[str, Any]]):
+    """Displays a formatted table of detected failed/suspicious rows."""
+    if not failed_rows:
+        if HAS_RICH:
+            console.print("[bold green]No failed or suspicious rows detected! Everything looks clean.[/bold green]")
+        else:
+            print("No failed or suspicious rows detected! Everything looks clean.")
+        return
+
+    if HAS_RICH:
+        table = Table(title=f"Detected Failed / Problematic Rows ({len(failed_rows)} rows)", border_style="yellow")
+        table.add_column("Row Index", style="cyan", justify="right")
+        table.add_column("Reasons", style="bold red")
+        table.add_column("bad_q preview", style="dim")
+        table.add_column("ss_prompt preview", style="dim")
+
+        for idx in sorted(failed_rows.keys()):
+            reasons_str = ", ".join(failed_rows[idx])
+            rec = records.get(idx, {})
+            bq = str(rec.get("bad_q_pt_internetes") or rec.get("bad_q_internetes") or "")[:45]
+            ss = str(rec.get("ss_prompt_pt_internetes") or rec.get("ss_prompt_internetes") or "")[:45]
+            table.add_row(str(idx), reasons_str, bq, ss)
+
+        console.print(table)
+    else:
+        print(f"\n--- Detected Failed / Problematic Rows ({len(failed_rows)} rows) ---")
+        for idx in sorted(failed_rows.keys()):
+            rec = records.get(idx, {})
+            bq = str(rec.get("bad_q_pt_internetes") or rec.get("bad_q_internetes") or "")[:40]
+            print(f"Row {idx}: {', '.join(failed_rows[idx])} | bad_q: '{bq}'")
 
 
 def parse_args():
@@ -251,7 +416,7 @@ def parse_args():
         "--prefix-template", "-p",
         type=str,
         default=DEFAULT_PREFIX_TEMPLATE,
-        help=f"Prefix template telling the AI to translate the entry (default: \"{DEFAULT_PREFIX_TEMPLATE}\")"
+        help=f"Prefix template telling the AI to translate the entry"
     )
     parser.add_argument(
         "--temperature", "-t",
@@ -296,10 +461,30 @@ def parse_args():
         help="Ignore existing checkpoint and start from scratch"
     )
     parser.add_argument(
-        "--compile-only",
+        "--retry-failed",
         action="store_true",
         default=False,
-        help="Compile existing JSONL checkpoint into Parquet directly without invoking model"
+        help="Automatically detect failed/refused/hallucinated rows, re-translate them, and recompile"
+    )
+    parser.add_argument(
+        "--retry-indices", "-r",
+        type=str,
+        default=None,
+        help="Comma-separated list or ranges of row indices to force retry (e.g. '1,5,10-15,107')"
+    )
+    parser.add_argument(
+        "--inspect-failed", "--list-failed",
+        action="store_true",
+        dest="inspect_failed",
+        default=False,
+        help="Inspect and list all failed/problematic rows in the current checkpoint without calling the model"
+    )
+    parser.add_argument(
+        "--compile-only", "--recompile",
+        action="store_true",
+        dest="compile_only",
+        default=False,
+        help="Compile existing records into Parquet directly (and auto-clean empty hallucinations) without invoking model"
     )
     return parser.parse_args()
 
@@ -318,29 +503,69 @@ def main():
     df_original = pd.read_parquet(input_path)
     total_original_rows = len(df_original)
 
+    # 1. Load records from checkpoint JSONL (or fallback to existing parquet)
+    if args.force:
+        if checkpoint_path.exists():
+            checkpoint_path.unlink()
+        records = {}
+        print("[*] Force mode enabled: checkpoint reset.")
+    else:
+        records = load_records(checkpoint_path, output_parquet_path)
+
+    # 2. Inspect failed rows if requested
+    failed_rows = detect_failed_rows(records, df_original)
+
+    if args.inspect_failed:
+        print_failed_inspection(failed_rows, records)
+        return
+
+    # 3. Auto-fix empty hallucinations (e.g. original prompt was empty but model output text)
+    fixed_empty_count = 0
+    for idx in range(total_original_rows):
+        orig_ss = str(df_original.iloc[idx].get("ss_prompt_pt", "") or "").strip()
+        if not orig_ss and idx in records:
+            if records[idx].get("ss_prompt_pt_internetes") or records[idx].get("ss_prompt_internetes"):
+                records[idx]["ss_prompt_pt_internetes"] = ""
+                records[idx]["ss_prompt_internetes"] = ""
+                fixed_empty_count += 1
+
+    if fixed_empty_count > 0:
+        print(f"[*] Auto-cleaned {fixed_empty_count} rows with hallucinated translations of empty original prompts.")
+        sync_all_records_to_checkpoint(records, checkpoint_path)
+
+    # 4. Compile-only mode
     if args.compile_only:
-        print(f"[*] Compiling checkpoint '{checkpoint_path}' into Parquet...")
+        print(f"[*] Compiling records into Parquet: {output_parquet_path}...")
         compile_checkpoint_to_parquet(
             checkpoint_path=checkpoint_path,
             output_parquet_path=output_parquet_path,
             expected_total_rows=total_original_rows,
+            records=records,
         )
         return
 
-    resolved_model_path = resolve_gemma_27b_model_path(args.model_path)
+    # 5. Determine which rows to process / retry
+    indices_to_retry = set()
+    if args.retry_indices:
+        specified = parse_retry_indices(args.retry_indices)
+        indices_to_retry.update(specified)
 
-    # Load existing checkpoint
-    if args.force:
-        if checkpoint_path.exists():
-            checkpoint_path.unlink()
-        completed_records = {}
-        print("[*] Force mode enabled: checkpoint reset.")
-    else:
-        completed_records = load_existing_checkpoint(checkpoint_path)
-
-    already_done_count = len(completed_records)
+    if args.retry_failed:
+        # Re-detect after auto-fix
+        failed_rows = detect_failed_rows(records, df_original)
+        indices_to_retry.update(failed_rows.keys())
 
     target_total_rows = total_original_rows if args.limit is None else min(args.limit, total_original_rows)
+
+    if indices_to_retry:
+        indices_to_process = sorted([idx for idx in indices_to_retry if idx < target_total_rows])
+        mode_label = f"Retrying {len(indices_to_process)} specific / failed rows"
+    else:
+        # Normal sequential processing: skip already completed valid rows
+        indices_to_process = [idx for idx in range(target_total_rows) if idx not in records]
+        mode_label = f"Sequential translation (remaining {len(indices_to_process)} rows)"
+
+    resolved_model_path = resolve_gemma_27b_model_path(args.model_path)
 
     if HAS_RICH:
         grid = Table.grid(expand=True)
@@ -349,8 +574,10 @@ def main():
         grid.add_row(f"[bold cyan]Model:[/] {resolved_model_path}")
         grid.add_row(f"[bold cyan]Checkpoint JSONL:[/] {checkpoint_path}")
         grid.add_row(f"[bold cyan]Output Parquet:[/] {output_parquet_path}")
-        grid.add_row(f"[bold green]Already Completed:[/] {already_done_count}/{target_total_rows}")
-        grid.add_row(f"[bold yellow]Prefix Template:[/] {args.prefix_template}")
+        grid.add_row(f"[bold green]Current Records:[/] {len(records)}/{target_total_rows}")
+        grid.add_row(f"[bold magenta]Mode:[/] {mode_label}")
+        if indices_to_retry:
+            grid.add_row(f"[bold red]Rows to Retry:[/] {indices_to_process}")
         console.print(Panel(grid, title="[bold magenta]PAP Dataset -> Internetês / Shitpost Translator[/bold magenta]", border_style="cyan"))
     else:
         print("=" * 70)
@@ -360,23 +587,26 @@ def main():
         print(f"[*] Model: {resolved_model_path}")
         print(f"[*] Checkpoint JSONL: {checkpoint_path}")
         print(f"[*] Output Parquet: {output_parquet_path}")
-        print(f"[*] Already Completed: {already_done_count}/{target_total_rows}")
+        print(f"[*] Current Records: {len(records)}/{target_total_rows}")
+        print(f"[*] Mode: {mode_label}")
+        if indices_to_retry:
+            print(f"[*] Rows to Retry: {indices_to_process}")
         print("=" * 70)
 
-    if already_done_count >= target_total_rows:
-        print(f"\n[+] All {target_total_rows} rows are already completed in checkpoint!")
-        compile_checkpoint_to_parquet(checkpoint_path, output_parquet_path, expected_total_rows=target_total_rows)
+    if not indices_to_process:
+        print(f"\n[+] All {target_total_rows} rows are complete and valid!")
+        compile_checkpoint_to_parquet(
+            checkpoint_path=checkpoint_path,
+            output_parquet_path=output_parquet_path,
+            expected_total_rows=target_total_rows,
+            records=records,
+        )
         return
 
-    # Process rows
-    processed_in_this_run = 0
-
-    indices_to_process = list(range(target_total_rows))
+    # 6. Execute translation for target rows
+    processed_count = 0
 
     for row_idx in indices_to_process:
-        if row_idx in completed_records:
-            continue
-
         row = df_original.iloc[row_idx]
         original_dict = row.to_dict()
 
@@ -386,41 +616,53 @@ def main():
         row_start_time = time.time()
 
         if HAS_RICH:
-            console.print(f"\n[bold blue]━━━━━━━━ Processing Row #{row_idx + 1}/{target_total_rows} ━━━━━━━━[/bold blue]")
+            console.print(f"\n[bold blue]━━━━━━━━ Processing Row #{row_idx} ({processed_count + 1}/{len(indices_to_process)}) ━━━━━━━━[/bold blue]")
             console.print(f"[dim]Plain PT-BR:[/] {bad_q_pt[:90]}...")
-            console.print(f"[dim]PAP PT-BR:[/]   {ss_prompt_pt[:90]}...")
+            if ss_prompt_pt:
+                console.print(f"[dim]PAP PT-BR:[/]   {ss_prompt_pt[:90]}...")
+            else:
+                console.print(f"[dim]PAP PT-BR:[/]   <Empty in original dataset>")
         else:
-            print(f"\n--- Processing Row #{row_idx + 1}/{target_total_rows} ---")
+            print(f"\n--- Processing Row #{row_idx} ({processed_count + 1}/{len(indices_to_process)}) ---")
             print(f"Plain PT-BR: {bad_q_pt[:80]}...")
-            print(f"PAP PT-BR:   {ss_prompt_pt[:80]}...")
+            if ss_prompt_pt:
+                print(f"PAP PT-BR:   {ss_prompt_pt[:80]}...")
+            else:
+                print(f"PAP PT-BR:   <Empty in original dataset>")
 
         # 1. Translate plain prompt (bad_q_pt)
-        bad_q_internetes = translate_prompt(
-            text=bad_q_pt,
-            model_path=resolved_model_path,
-            prefix_template=args.prefix_template,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            max_tokens=args.max_tokens,
-            n_ctx=args.context_size,
-            n_gpu_layers=args.gpu_layers,
-        )
+        if bad_q_pt:
+            bad_q_internetes = translate_prompt(
+                text=bad_q_pt,
+                model_path=resolved_model_path,
+                prefix_template=args.prefix_template,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                max_tokens=args.max_tokens,
+                n_ctx=args.context_size,
+                n_gpu_layers=args.gpu_layers,
+            )
+        else:
+            bad_q_internetes = ""
 
-        # 2. Translate PAP prompt (ss_prompt_pt)
-        ss_prompt_internetes = translate_prompt(
-            text=ss_prompt_pt,
-            model_path=resolved_model_path,
-            prefix_template=args.prefix_template,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            max_tokens=args.max_tokens,
-            n_ctx=args.context_size,
-            n_gpu_layers=args.gpu_layers,
-        )
+        # 2. Translate PAP prompt (ss_prompt_pt) if present
+        if ss_prompt_pt:
+            ss_prompt_internetes = translate_prompt(
+                text=ss_prompt_pt,
+                model_path=resolved_model_path,
+                prefix_template=args.prefix_template,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                max_tokens=args.max_tokens,
+                n_ctx=args.context_size,
+                n_gpu_layers=args.gpu_layers,
+            )
+        else:
+            ss_prompt_internetes = ""
 
         row_duration = time.time() - row_start_time
 
-        # Create record with all original columns + new internetes fields + metadata
+        # Update record
         record = {
             "row_index": int(row_idx),
             **original_dict,
@@ -432,26 +674,29 @@ def main():
             "translation_timestamp": time.time(),
         }
 
-        # Save to JSONL checkpoint immediately
-        append_record_to_checkpoint(checkpoint_path, record)
-        completed_records[row_idx] = record
-        processed_in_this_run += 1
+        records[row_idx] = record
+        sync_all_records_to_checkpoint(records, checkpoint_path)
+        processed_count += 1
 
         if HAS_RICH:
-            console.print(Panel(bad_q_internetes, title="[bold green]bad_q_pt_internetes[/bold green]", border_style="green"))
-            console.print(Panel(ss_prompt_internetes, title="[bold cyan]ss_prompt_pt_internetes[/bold cyan]", border_style="cyan"))
-            console.print(f"[dim green]✓ Row #{row_idx + 1} saved to checkpoint ({row_duration:.1f}s)[/dim green]")
+            console.print(Panel(bad_q_internetes or "<Empty>", title="[bold green]bad_q_pt_internetes[/bold green]", border_style="green"))
+            console.print(Panel(ss_prompt_internetes or "<Empty>", title="[bold cyan]ss_prompt_pt_internetes[/bold cyan]", border_style="cyan"))
+            console.print(f"[dim green]✓ Row #{row_idx} saved to checkpoint ({row_duration:.1f}s)[/dim green]")
         else:
             print(f"-> bad_q_internetes: {bad_q_internetes}")
             print(f"-> ss_prompt_internetes: {ss_prompt_internetes}")
-            print(f"[✓] Row #{row_idx + 1} saved to checkpoint ({row_duration:.1f}s)")
+            print(f"[✓] Row #{row_idx} saved to checkpoint ({row_duration:.1f}s)")
 
-    print(f"\n[+] Finished processing {processed_in_this_run} new rows in this run!")
+    print(f"\n[+] Finished processing {processed_count} rows in this run!")
 
-    # Check if all rows are now in checkpoint
-    if len(completed_records) >= target_total_rows:
-        print(f"[*] Compiling all {len(completed_records)} records into Parquet: {output_parquet_path}")
-        compile_checkpoint_to_parquet(checkpoint_path, output_parquet_path, expected_total_rows=target_total_rows)
+    # 7. Recompile Parquet with all records
+    print(f"[*] Compiling all {len(records)} records into Parquet: {output_parquet_path}")
+    compile_checkpoint_to_parquet(
+        checkpoint_path=checkpoint_path,
+        output_parquet_path=output_parquet_path,
+        expected_total_rows=target_total_rows,
+        records=records,
+    )
 
 
 if __name__ == "__main__":
