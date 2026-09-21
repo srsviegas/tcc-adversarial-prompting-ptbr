@@ -137,6 +137,68 @@ class TestQwen3(unittest.TestCase):
             self.assertEqual(res["output"]["thought_process"], "Analise interna")
             self.assertEqual(res["thought_process"], "Analise interna")
 
+    def test_qwen_coder_model_path_resolution(self):
+        from src.models.qwen import (
+            DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_FILENAME,
+            resolve_qwen_coder_model_path,
+        )
+        for alias in ["qwen_coder", "qwen_coder_32b", "qwen2.5_coder_32b_abliterated", "abliterated_coder"]:
+            resolved = resolve_qwen_coder_model_path(alias)
+            self.assertIn(DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_FILENAME, resolved)
+
+        # Testing None defaults to Coder model filename in resolve_qwen_coder_model_path
+        resolved_none = resolve_qwen_coder_model_path(None)
+        self.assertIn(DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_FILENAME, resolved_none)
+
+    @patch("src.models.qwen.get_or_load_qwen")
+    def test_qwen_coder_generate_response_mocked(self, mock_load):
+        mock_llm = MagicMock()
+        mock_load.return_value = mock_llm
+        mock_llm.create_chat_completion.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "<think>\nThinking about code\n</think>\n\nprint('Hello World')"
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 15,
+                "total_tokens": 25,
+            },
+        }
+
+        for provider_name in ["qwen_coder", "qwen_coder_32b", "qwen2.5_coder_32b_abliterated"]:
+            res = generate_response(
+                model_provider=provider_name,
+                api_key=None,
+                model_name="Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf",
+                system_prompt="sys",
+                user_prompt="Write hello world",
+            )
+            self.assertFalse(res["error_log"]["failed"])
+            self.assertEqual(res["output"]["extracted_text"], "print('Hello World')")
+            self.assertEqual(res["output"]["thought_process"], "Thinking about code")
+
+    def test_internetes_instruction_resolution(self):
+        from src.prompts import INTERNETES_SYSTEM_PROMPT, SHITPOST_SYSTEM_PROMPT
+        from scripts.prompt_qwen2_5_coder_32b_abliterated import resolve_instruction
+
+        self.assertEqual(INTERNETES_SYSTEM_PROMPT, SHITPOST_SYSTEM_PROMPT)
+        self.assertIn("shitpost brasileiro", INTERNETES_SYSTEM_PROMPT)
+
+        key1, text1 = resolve_instruction("internetes")
+        self.assertEqual(key1, "internetes")
+        self.assertEqual(text1, INTERNETES_SYSTEM_PROMPT)
+
+        key2, text2 = resolve_instruction("shitpost")
+        self.assertEqual(key2, "internetes")
+        self.assertEqual(text2, INTERNETES_SYSTEM_PROMPT)
+
 
 if __name__ == "__main__":
     unittest.main()
+
+

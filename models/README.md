@@ -47,6 +47,21 @@ hf download Qwen/Qwen3-14B-GGUF Qwen3-14B-Q4_K_M.gguf --local-dir ./models
 hf download bartowski/gemma-4-12B-it-GGUF gemma-4-12B-it-Q4_K_M.gguf --local-dir ./models
 ```
 
+## Qwen 2.5 Coder 32B Instruct (Abliterated) Q4_K_M
+
+- **Original Model:** https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct
+- **GGUF Model (Abliterated):** https://huggingface.co/bartowski/Qwen2.5-Coder-32B-Instruct-abliterated-GGUF
+- **File:** `Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf`
+
+```bash
+py -m pip install huggingface_hub
+
+py -m huggingface_hub.cli.hf download bartowski/Qwen2.5-Coder-32B-Instruct-abliterated-GGUF Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf --local-dir ./models
+
+## Or,
+hf download bartowski/Qwen2.5-Coder-32B-Instruct-abliterated-GGUF Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf --local-dir ./models
+```
+
 ## NVIDIA Aegis AI Content Safety LlamaGuard Defensive 1.0
 
 - **Base Model:** https://huggingface.co/meta-llama/LlamaGuard-7b (Gated, requires accepting Llama license)

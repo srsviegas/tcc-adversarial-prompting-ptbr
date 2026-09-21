@@ -5,7 +5,16 @@ from src.models.deepseek_r1 import DeepSeekR1Provider, call_deepseek_r1
 from src.models.gemini import GeminiProvider, call_gemini
 from src.models.gemma import Gemma4Provider, GemmaProvider, call_gemma4, call_gemma
 from src.models.local_llama import LocalLlamaProvider, call_local_llama
-from src.models.qwen import Qwen3Provider, QwenProvider, call_qwen3, call_qwen
+from src.models.qwen import (
+    Qwen3Provider,
+    QwenProvider,
+    Qwen25Coder32BAbliteratedProvider,
+    QwenCoderProvider,
+    QwenCoderAbliteratedProvider,
+    call_qwen3,
+    call_qwen,
+    call_qwen_coder,
+)
 from src.models.registry import ProviderRegistry
 
 
@@ -48,6 +57,9 @@ __all__ = [
     "ProviderRegistry",
     "Qwen3Provider",
     "QwenProvider",
+    "Qwen25Coder32BAbliteratedProvider",
+    "QwenCoderProvider",
+    "QwenCoderAbliteratedProvider",
     "call_deepseek_r1",
     "call_gemini",
     "call_gemma",
@@ -55,6 +67,7 @@ __all__ = [
     "call_local_llama",
     "call_qwen",
     "call_qwen3",
+    "call_qwen_coder",
     "extract_thought_process",
     "generate_response",
 ]

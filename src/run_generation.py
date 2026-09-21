@@ -126,6 +126,14 @@ def run_benchmark(
         model = "models/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf"
     elif provider in ("qwen", "qwen3", "qwen-3", "qwen_3", "qwen3_14b", "qwen3-14b", "qwen_14b", "qwen-14b", "local_qwen") and model == "gemini-3.5-flash-lite":
         model = "models/Qwen3-14B-Q4_K_M.gguf"
+    elif provider in (
+        "qwen_coder", "qwen-coder", "qwen_coder_32b", "qwen-coder-32b",
+        "qwen2.5_coder", "qwen2.5-coder", "qwen2.5_coder_32b", "qwen2.5-coder-32b",
+        "qwen2.5_coder_32b_abliterated", "qwen2.5-coder-32b-abliterated",
+        "qwen2.5_coder_32b_instruct_abliterated", "qwen2.5-coder-32b-instruct-abliterated",
+        "qwen_coder_32b_abliterated", "qwen_coder_abliterated", "qwen_abliterated", "qwen-abliterated", "abliterated_coder",
+    ) and model == "gemini-3.5-flash-lite":
+        model = "models/Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf"
     elif provider in ("gemma", "gemma4", "gemma-4", "gemma_4", "gemma4_12b", "gemma4-12b", "gemma-4-12b", "gemma_4_12b", "gemma-12b", "gemma_12b", "local_gemma") and model == "gemini-3.5-flash-lite":
         model = "models/gemma-4-12B-it-Q4_K_M.gguf"
     model_short_name = Path(model).name if ("/" in model or "\\" in model or ":" in model) else model

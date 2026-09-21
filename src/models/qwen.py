@@ -17,6 +17,9 @@ _CURRENT_QWEN_MODEL_PATH = None
 DEFAULT_QWEN_MODEL_FILENAME = "Qwen3-14B-Q4_K_M.gguf"
 DEFAULT_QWEN_MODEL_PATH = f"models/{DEFAULT_QWEN_MODEL_FILENAME}"
 
+DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_FILENAME = "Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf"
+DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_PATH = f"models/{DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_FILENAME}"
+
 QWEN_ALIASES = {
     "qwen",
     "qwen3",
@@ -29,11 +32,31 @@ QWEN_ALIASES = {
     "local_qwen",
 }
 
+QWEN_CODER_ALIASES = {
+    "qwen_coder",
+    "qwen-coder",
+    "qwen_coder_32b",
+    "qwen-coder-32b",
+    "qwen2.5_coder",
+    "qwen2.5-coder",
+    "qwen2.5_coder_32b",
+    "qwen2.5-coder-32b",
+    "qwen2.5_coder_32b_abliterated",
+    "qwen2.5-coder-32b-instruct-abliterated",
+    "qwen2.5_coder_32b_instruct_abliterated",
+    "qwen_coder_32b_abliterated",
+    "qwen_coder_abliterated",
+    "qwen_abliterated",
+    "qwen-abliterated",
+    "abliterated_coder",
+}
+
 # Supported alternative filenames if user downloaded Instruct or alternative naming
 ALTERNATIVE_QWEN_FILENAMES = [
     "Qwen3-14B-Q4_K_M.gguf",
     "Qwen3-14B-Instruct-Q4_K_M.gguf",
     "Qwen2.5-14B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf",
 ]
 
 
@@ -58,6 +81,15 @@ def resolve_qwen_model_path(model_name: Optional[str] = None) -> str:
     """
     Resolves Qwen model path, checking aliases, raw path, relative path, and ./models directory.
     """
+    if model_name and model_name.strip().lower() in QWEN_CODER_ALIASES:
+        default_coder_p = Path(DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_PATH)
+        if default_coder_p.is_file():
+            return str(default_coder_p.resolve())
+        coder_in_models = Path("models") / DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_FILENAME
+        if coder_in_models.is_file():
+            return str(coder_in_models.resolve())
+        return DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_PATH
+
     if not model_name or model_name.strip().lower() in QWEN_ALIASES:
         # Check standard default file first
         default_p = Path(DEFAULT_QWEN_MODEL_PATH)
@@ -83,6 +115,21 @@ def resolve_qwen_model_path(model_name: Optional[str] = None) -> str:
         return str(models_dir_basename.resolve())
 
     return model_name
+
+
+def resolve_qwen_coder_model_path(model_name: Optional[str] = None) -> str:
+    """
+    Resolves Qwen Coder 32B Abliterated model path specifically.
+    """
+    if not model_name or model_name.strip().lower() in QWEN_CODER_ALIASES or model_name.strip().lower() in QWEN_ALIASES:
+        default_coder_p = Path(DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_PATH)
+        if default_coder_p.is_file():
+            return str(default_coder_p.resolve())
+        coder_in_models = Path("models") / DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_FILENAME
+        if coder_in_models.is_file():
+            return str(coder_in_models.resolve())
+        return DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_PATH
+    return resolve_qwen_model_path(model_name)
 
 
 def get_or_load_qwen(
@@ -255,3 +302,64 @@ def call_qwen3(
 
 
 call_qwen = call_qwen3
+
+
+class Qwen25Coder32BAbliteratedProvider(Qwen3Provider):
+    """
+    Provider implementation for Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf via llama-cpp-python.
+    """
+
+    def generate(
+        self,
+        model_name: str = DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_PATH,
+        system_prompt: str = "",
+        user_prompt: str = "",
+        temperature: float = 0.6,
+        top_p: float = 0.95,
+        max_output_tokens: int = 8192,
+        seed: Optional[int] = None,
+        api_key: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        return super().generate(
+            model_name=model_name,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=max_output_tokens,
+            seed=seed,
+            api_key=api_key,
+            **kwargs,
+        )
+
+
+QwenCoder32BAbliteratedProvider = Qwen25Coder32BAbliteratedProvider
+QwenCoderProvider = Qwen25Coder32BAbliteratedProvider
+QwenCoderAbliteratedProvider = Qwen25Coder32BAbliteratedProvider
+
+
+def call_qwen_coder(
+    model_name: str = DEFAULT_QWEN_CODER_32B_ABLITERATED_MODEL_PATH,
+    system_prompt: str = "",
+    user_prompt: str = "",
+    temperature: float = 0.6,
+    top_p: float = 0.95,
+    max_output_tokens: int = 8192,
+    seed: Optional[int] = None,
+    api_key: Optional[str] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    provider = Qwen25Coder32BAbliteratedProvider()
+    return provider.generate(
+        model_name=model_name,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        temperature=temperature,
+        top_p=top_p,
+        max_output_tokens=max_output_tokens,
+        seed=seed,
+        api_key=api_key,
+        **kwargs,
+    )
+
