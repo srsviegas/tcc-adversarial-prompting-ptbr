@@ -33,3 +33,8 @@ class PAPAdapter(DatasetAdapter):
             "baseline_refusal_en": row.get("ori_output", ""),
             "baseline_jailbreak_en": row.get("jb_output", "")
         }
+
+
+from src.adapters.pap_internetes import PAPInternetesAdapter
+
+__all__ = ["PAPAdapter", "PAPInternetesAdapter"]

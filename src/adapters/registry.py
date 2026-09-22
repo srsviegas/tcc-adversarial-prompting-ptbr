@@ -2,6 +2,7 @@ from typing import Dict, Type
 
 from src.adapters.base import DatasetAdapter
 from src.adapters.pap import PAPAdapter
+from src.adapters.pap_internetes import PAPInternetesAdapter
 from src.adapters.toxicchat import ToxicChatPlainAdapter
 from src.adapters.toxicchat_cipher import (
     ToxicChatCipherAdapter,
@@ -42,6 +43,9 @@ class AdapterRegistry:
 
     _ADAPTERS: Dict[str, Type[DatasetAdapter]] = {
         "pap": PAPAdapter,
+        "pap_internetes": PAPInternetesAdapter,
+        "pap_pt_internetes": PAPInternetesAdapter,
+        "internetes_pap": PAPInternetesAdapter,
         "toxicchat": ToxicChatPlainAdapter,
         "toxicchat_plain": ToxicChatPlainAdapter,
         "toxicchat_cipher": ToxicChatCipherAdapter,
