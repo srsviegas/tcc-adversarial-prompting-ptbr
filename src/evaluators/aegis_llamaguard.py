@@ -107,9 +107,15 @@ class AegisLlamaGuardEvaluator(BaseEvaluator):
         max_new_tokens: int = 50,
         device: Optional[str] = None,
         load_in_4bit: bool = False,
+        model: Optional[str] = None,
         **kwargs: Any,
     ):
-        self.model_id = model_id
+        if model_id != DEFAULT_AEGIS_ADAPTER_ID:
+            self.model_id = model_id
+        elif model is not None:
+            self.model_id = model
+        else:
+            self.model_id = model_id
         self.base_model_id = base_model_id
         self.hf_token = hf_token or os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
         self.max_new_tokens = max_new_tokens
@@ -117,7 +123,7 @@ class AegisLlamaGuardEvaluator(BaseEvaluator):
         self.load_in_4bit = load_in_4bit
         self._model = None
         self._tokenizer = None
-        self._is_gguf = model_id.endswith(".gguf") or (os.path.isfile(model_id) and "gguf" in model_id.lower())
+        self._is_gguf = self.model_id.endswith(".gguf") or (os.path.isfile(self.model_id) and "gguf" in self.model_id.lower())
 
     @property
     def name(self) -> str:

@@ -20,9 +20,16 @@ class OpenAIModerationEvaluator(BaseEvaluator):
         model: str = DEFAULT_MODERATION_MODEL,
         max_retries: int = 3,
         base_backoff_sec: float = 2.0,
+        model_id: Optional[str] = None,
+        **kwargs: Any,
     ):
         self._api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.model = model
+        if model != DEFAULT_MODERATION_MODEL:
+            self.model = model
+        elif model_id is not None:
+            self.model = model_id
+        else:
+            self.model = model
         self.max_retries = max_retries
         self.base_backoff_sec = base_backoff_sec
         self._client = None

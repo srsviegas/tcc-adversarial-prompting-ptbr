@@ -24,6 +24,20 @@ class TestOpenAIModerationEvaluator(unittest.TestCase):
         res_spaces = evaluator.evaluate("    \n  ")
         self.assertEqual(res_spaces["status"], "skipped")
 
+    def test_constructor_accepts_model_and_model_id_and_kwargs(self):
+        ev1 = OpenAIModerationEvaluator(model="custom-model")
+        self.assertEqual(ev1.model, "custom-model")
+
+        ev2 = OpenAIModerationEvaluator(model_id="custom-model-id")
+        self.assertEqual(ev2.model, "custom-model-id")
+
+        ev3 = OpenAIModerationEvaluator(
+            model="custom-model",
+            model_id="custom-model",
+            unexpected_arg="ignored",
+        )
+        self.assertEqual(ev3.model, "custom-model")
+
     @patch("openai.OpenAI")
     def test_flagged_content_evaluation(self, mock_openai_cls):
         mock_client = MagicMock()
@@ -233,6 +247,7 @@ class TestEvaluationRunnerAndCheckpoint(unittest.TestCase):
         out_path = run_evaluation(
             log_file=str(self.test_log_path),
             evaluator_name="openai_moderation",
+            model="omni-moderation-latest",
             api_key="mock_key",
             ui=quiet_ui,
         )

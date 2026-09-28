@@ -3,18 +3,36 @@
  * for both Generated Logs and Evaluated Logs.
  */
 
+export const METHOD_CATEGORIES = [
+    { id: 'all', label: 'All Tests' },
+    { id: 'persuasive', label: 'Persuasive (PAP)' },
+    { id: 'stylized', label: 'Stylized Fonts' },
+    { id: 'ciphers', label: 'Ciphers & Encodings' },
+    { id: 'direct', label: 'Direct & Injections' },
+];
+
 export const STANDARD_METHODS = [
     {
         id: 'pap',
         label: 'PAP (Persuasive)',
         shortLabel: 'PAP',
+        category: 'persuasive',
         description: 'Persuasive Adversarial Prompting',
         color: '#6366f1',
+    },
+    {
+        id: 'pap_internetes',
+        label: 'PAP Internetês',
+        shortLabel: 'PAP Net',
+        category: 'persuasive',
+        description: 'Persuasive Adversarial Prompting (Internetês / Shitpost BR)',
+        color: '#06b6d4',
     },
     {
         id: 'emoji',
         label: 'Emoji Attack',
         shortLabel: 'Emoji',
+        category: 'ciphers',
         description: 'Emoji Steganography / Obfuscation',
         color: '#ec4899',
     },
@@ -22,13 +40,31 @@ export const STANDARD_METHODS = [
         id: 'toxicchat',
         label: 'ToxicChat (Plain)',
         shortLabel: 'ToxicChat',
+        category: 'direct',
         description: 'ToxicChat direct prompt benchmark',
         color: '#f59e0b',
+    },
+    {
+        id: 'toxicchat_prefix',
+        label: 'ToxicChat Prefix',
+        shortLabel: 'Prefix',
+        category: 'direct',
+        description: 'Targeted Prefix & Forced Affirmation',
+        color: '#14b8a6',
+    },
+    {
+        id: 'toxicchat_gcg',
+        label: 'ToxicChat GCG',
+        shortLabel: 'GCG',
+        category: 'direct',
+        description: 'Greedy Coordinate Gradient Universal Adversarial Suffix',
+        color: '#e11d48',
     },
     {
         id: 'toxicchat_base64',
         label: 'ToxicChat Base64',
         shortLabel: 'Base64',
+        category: 'ciphers',
         description: 'Base64 Obfuscation benchmark',
         color: '#8b5cf6',
     },
@@ -36,6 +72,7 @@ export const STANDARD_METHODS = [
         id: 'toxicchat_rot13',
         label: 'ToxicChat ROT13',
         shortLabel: 'ROT13',
+        category: 'ciphers',
         description: 'ROT13 Letter Substitution benchmark',
         color: '#a855f7',
     },
@@ -43,6 +80,7 @@ export const STANDARD_METHODS = [
         id: 'toxicchat_hex',
         label: 'ToxicChat Hex',
         shortLabel: 'Hex',
+        category: 'ciphers',
         description: 'Hexadecimal ASCII Encoding benchmark',
         color: '#7c3aed',
     },
@@ -50,6 +88,7 @@ export const STANDARD_METHODS = [
         id: 'toxicchat_caesar',
         label: 'ToxicChat Caesar',
         shortLabel: 'Caesar',
+        category: 'ciphers',
         description: 'Caesar Cipher Shift-3 benchmark',
         color: '#9333ea',
     },
@@ -57,14 +96,80 @@ export const STANDARD_METHODS = [
         id: 'toxicchat_leetspeak',
         label: 'ToxicChat Leetspeak',
         shortLabel: 'Leetspeak',
+        category: 'ciphers',
         description: 'Leet 1337 Character Substitution benchmark',
         color: '#6366f1',
     },
     {
-        id: 'toxicchat_prefix',
-        label: 'ToxicChat Prefix',
-        shortLabel: 'Prefix',
-        description: 'Targeted Prefix & Forced Affirmation',
+        id: 'toxicchat_stylized_bold',
+        label: 'Stylized Bold',
+        shortLabel: 'Math Bold',
+        category: 'stylized',
+        description: 'Mathematical Bold Unicode font (𝐀𝐁𝐂...)',
+        color: '#ea580c',
+    },
+    {
+        id: 'toxicchat_stylized_bold_script',
+        label: 'Stylized Bold Script',
+        shortLabel: 'Bold Script',
+        category: 'stylized',
+        description: 'Mathematical Bold Script/Cursive font (𝓐𝓑𝓒...)',
+        color: '#10b981',
+    },
+    {
+        id: 'toxicchat_stylized_double_struck',
+        label: 'Stylized Double-Struck',
+        shortLabel: 'Double-Struck',
+        category: 'stylized',
+        description: 'Mathematical Double-Struck/Blackboard Bold (𝔸𝔹ℂ...)',
+        color: '#2563eb',
+    },
+    {
+        id: 'toxicchat_stylized_fraktur',
+        label: 'Stylized Fraktur',
+        shortLabel: 'Fraktur',
+        category: 'stylized',
+        description: 'Mathematical Bold Fraktur/Gothic font (𝕬𝕭𝕮...)',
+        color: '#84cc16',
+    },
+    {
+        id: 'toxicchat_stylized_fullwidth',
+        label: 'Stylized Fullwidth',
+        shortLabel: 'Fullwidth',
+        category: 'stylized',
+        description: 'Fullwidth / Wide Unicode font (ＡＢＣ...)',
+        color: '#6366f1',
+    },
+    {
+        id: 'toxicchat_stylized_regional_indicator',
+        label: 'Stylized Regional Indicator',
+        shortLabel: 'Regional Ind.',
+        category: 'stylized',
+        description: 'Regional Indicator Letters & Keycaps (🇦🇧🇨... 0️⃣1️⃣...)',
+        color: '#d946ef',
+    },
+    {
+        id: 'toxicchat_stylized_sans_bold_italic',
+        label: 'Stylized Sans Bold Italic',
+        shortLabel: 'Sans Bold Italic',
+        category: 'stylized',
+        description: 'Mathematical Sans-Serif Bold Italic font (𝘼𝘽𝘾...)',
+        color: '#f43f5e',
+    },
+    {
+        id: 'toxicchat_stylized_script',
+        label: 'Stylized Script',
+        shortLabel: 'Script',
+        category: 'stylized',
+        description: 'Mathematical Script with Sans Digits (𝒜𝐵𝒞... 𝟢𝟣𝟤...)',
+        color: '#0ea5e9',
+    },
+    {
+        id: 'toxicchat_stylized',
+        label: 'ToxicChat Stylized (All)',
+        shortLabel: 'Stylized (All)',
+        category: 'stylized',
+        description: 'All Stylized Unicode character font obfuscations combined',
         color: '#14b8a6',
     },
 ];
@@ -108,6 +213,19 @@ export const STANDARD_MODELS = [
 ];
 
 const KNOWN_METHOD_KEYS = [
+    'toxicchat_stylized_bold_script',
+    'toxicchat_stylized_double_struck',
+    'toxicchat_stylized_sans_bold_italic',
+    'toxicchat_stylized_regional_indicator',
+    'toxicchat_stylized_fraktur',
+    'toxicchat_stylized_fullwidth',
+    'toxicchat_stylized_script',
+    'toxicchat_stylized_bold',
+    'toxicchat_stylized',
+    'pap_internetes',
+    'pap_pt_internetes',
+    'internetes_pap',
+    'pap',
     'toxicchat_base64',
     'toxicchat_rot13',
     'toxicchat_hex',
@@ -118,15 +236,18 @@ const KNOWN_METHOD_KEYS = [
     'toxicchat_prefix',
     'toxicchat_gcg',
     'toxicchat',
-    'pap',
     'emoji',
 ];
 
 const KNOWN_PROVIDERS = [
+    'gemma2_27b_abliterated',
+    'llama_3_3_70b_abliterated',
+    'qwen2_5_coder_32b_abliterated',
     'gemini',
     'local',
     'deepseek',
     'gemma4',
+    'gemma2',
     'gemma',
     'qwen3',
     'qwen',
@@ -189,6 +310,7 @@ export function getMethodMeta(methodKey) {
         id: methodKey,
         label: methodKey.replace(/_/g, ' ').toUpperCase(),
         shortLabel: methodKey.replace(/_/g, ' '),
+        category: 'other',
         description: 'Adversarial benchmark',
         color: '#64748b',
     };
@@ -198,8 +320,35 @@ export function getModelMeta(modelKey) {
     const found = STANDARD_MODELS.find((m) => m.id === modelKey);
     if (found) return found;
 
+    const lower = modelKey.toLowerCase();
+    if (lower.includes('gemma-2-27b') || lower.includes('gemma2_27b')) {
+        return {
+            id: modelKey,
+            label: 'Gemma 2 27B IT (Abliterated)',
+            shortLabel: 'Gemma 2 27B Abl.',
+            provider: 'gemma',
+        };
+    }
+    if (lower.includes('llama-3.3-70b') || lower.includes('llama3_3_70b')) {
+        return {
+            id: modelKey,
+            label: 'Llama 3.3 70B Instruct (Abliterated)',
+            shortLabel: 'Llama 3.3 70B Abl.',
+            provider: 'llama',
+        };
+    }
+    if (lower.includes('qwen2.5-coder-32b') || lower.includes('qwen2_5_coder_32b') || lower.includes('qwen_coder_32b')) {
+        return {
+            id: modelKey,
+            label: 'Qwen 2.5 Coder 32B (Abliterated)',
+            shortLabel: 'Qwen 2.5 32B Abl.',
+            provider: 'qwen',
+        };
+    }
+
     const cleanLabel = modelKey
         .replace(/-Q4_K_M.*$/i, '')
+        .replace(/-Q5_K_M.*$/i, '')
         .replace(/\.gguf$/i, '')
         .replace(/_/g, ' ');
 

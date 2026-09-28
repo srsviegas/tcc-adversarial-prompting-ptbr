@@ -16,10 +16,12 @@ import {
     faArrowUpRightFromSquare,
     faLayerGroup,
     faBullseye,
+    faFilter,
 } from '@fortawesome/free-solid-svg-icons';
 import {
     STANDARD_METHODS,
     STANDARD_MODELS,
+    METHOD_CATEGORIES,
     parseLogFilename,
     getMethodMeta,
     getModelMeta,
@@ -94,6 +96,7 @@ export function OverviewMatrixView({
     const [loadingGenerated, setLoadingGenerated] = useState(false);
     const [loadingEvaluated, setLoadingEvaluated] = useState(false);
     const [selectedEvaluatedCell, setSelectedEvaluatedCell] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState('all');
 
     // Map files to matrix slots: (methodKey, modelKey) -> { fileName, meta }
     const generatedFileMapping = useMemo(() => {
@@ -138,6 +141,11 @@ export function OverviewMatrixView({
         });
         return ordered;
     }, [generatedFileMapping, evaluatedFileMapping]);
+
+    const displayedMethods = useMemo(() => {
+        if (selectedCategory === 'all') return allMethods;
+        return allMethods.filter((m) => m.category === selectedCategory);
+    }, [allMethods, selectedCategory]);
 
     const allModels = useMemo(() => {
         const modelKeys = new Set(STANDARD_MODELS.map((m) => m.id));
@@ -311,6 +319,55 @@ export function OverviewMatrixView({
                 />
             </Stack>
 
+            {/* Benchmark Suite Category Filter Bar */}
+            <Box
+                sx={{
+                    bgcolor: '#ffffff',
+                    p: 2,
+                    px: 2.5,
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 2.5,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                }}
+            >
+                <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={1.5}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <FontAwesomeIcon icon={faFilter} style={{ fontSize: '0.8rem', color: '#64748b' }} />
+                        <Typography variant="subtitle2" fontWeight={700} color="#334155" fontSize="0.825rem">
+                            Test Suite Category:
+                        </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        {METHOD_CATEGORIES.map((cat) => {
+                            const count = cat.id === 'all'
+                                ? allMethods.length
+                                : allMethods.filter((m) => m.category === cat.id).length;
+                            const isSelected = selectedCategory === cat.id;
+                            return (
+                                <Chip
+                                    key={cat.id}
+                                    label={`${cat.label} (${count})`}
+                                    onClick={() => setSelectedCategory(cat.id)}
+                                    size="small"
+                                    sx={{
+                                        cursor: 'pointer',
+                                        fontWeight: isSelected ? 700 : 500,
+                                        fontSize: '0.75rem',
+                                        bgcolor: isSelected ? '#2563eb' : '#f8fafc',
+                                        color: isSelected ? '#ffffff' : '#475569',
+                                        border: isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                                        transition: 'all 0.15s ease',
+                                        '&:hover': {
+                                            bgcolor: isSelected ? '#1d4ed8' : '#f1f5f9',
+                                        },
+                                    }}
+                                />
+                            );
+                        })}
+                    </Stack>
+                </Stack>
+            </Box>
+
             {/* SECTION 1: GENERATED CONTENT MATRIX */}
             <Box
                 sx={{
@@ -329,7 +386,11 @@ export function OverviewMatrixView({
                                     Generated Content Matrix
                                 </Typography>
                                 <Chip
-                                    label={`${kpis.generatedCount} filled · ${kpis.totalMatrixSlots - kpis.generatedCount} missing`}
+                                    label={
+                                        selectedCategory === 'all'
+                                            ? `${kpis.generatedCount} filled · ${kpis.totalMatrixSlots - kpis.generatedCount} missing`
+                                            : `Showing ${displayedMethods.length} of ${allMethods.length} tests`
+                                    }
                                     size="small"
                                     sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600, bgcolor: '#f1f5f9', color: '#475569' }}
                                 />
@@ -402,23 +463,38 @@ export function OverviewMatrixView({
                         </Box>
 
                         <Box component="tbody">
-                            {allMethods.map((method) => (
+                            {displayedMethods.map((method) => (
                                 <Box component="tr" key={method.id} sx={{ '&:hover': { bgcolor: '#fbfcfd' } }}>
                                     {/* Method Row Label */}
                                     <Box
                                         component="td"
                                         sx={{
-                                            p: 2,
+                                            p: 1.75,
                                             borderBottom: '1px solid #f1f5f9',
                                             verticalAlign: 'middle',
                                         }}
                                     >
-                                        <Typography variant="subtitle2" fontWeight={700} color="#1e293b" fontSize="0.825rem">
-                                            {method.shortLabel}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary" fontSize="0.7rem" display="block">
-                                            {method.label}
-                                        </Typography>
+                                        <Stack direction="row" spacing={1.25} alignItems="center">
+                                            <Box
+                                                sx={{
+                                                    width: 4,
+                                                    height: 28,
+                                                    borderRadius: 1,
+                                                    bgcolor: method.color || '#64748b',
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Typography variant="subtitle2" fontWeight={700} color="#1e293b" fontSize="0.825rem" noWrap>
+                                                    {method.shortLabel}
+                                                </Typography>
+                                                <Tooltip title={method.description || method.label} arrow placement="top">
+                                                    <Typography variant="caption" color="text.secondary" fontSize="0.7rem" display="block" noWrap>
+                                                        {method.label}
+                                                    </Typography>
+                                                </Tooltip>
+                                            </Box>
+                                        </Stack>
                                     </Box>
 
                                     {/* Model Cells */}
@@ -552,7 +628,11 @@ export function OverviewMatrixView({
                                     Evaluated Content Matrix (ASR Analysis)
                                 </Typography>
                                 <Chip
-                                    label={`${kpis.evaluatedCount} evaluated logs`}
+                                    label={
+                                        selectedCategory === 'all'
+                                            ? `${kpis.evaluatedCount} evaluated logs`
+                                            : `Showing ${displayedMethods.length} of ${allMethods.length} tests`
+                                    }
                                     size="small"
                                     sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600, bgcolor: '#f5f3ff', color: '#6d28d9' }}
                                 />
@@ -625,23 +705,38 @@ export function OverviewMatrixView({
                         </Box>
 
                         <Box component="tbody">
-                            {allMethods.map((method) => (
+                            {displayedMethods.map((method) => (
                                 <Box component="tr" key={method.id} sx={{ '&:hover': { bgcolor: '#fbfcfd' } }}>
                                     {/* Method Row Label */}
                                     <Box
                                         component="td"
                                         sx={{
-                                            p: 2,
+                                            p: 1.75,
                                             borderBottom: '1px solid #f1f5f9',
                                             verticalAlign: 'middle',
                                         }}
                                     >
-                                        <Typography variant="subtitle2" fontWeight={700} color="#1e293b" fontSize="0.825rem">
-                                            {method.shortLabel}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary" fontSize="0.7rem" display="block">
-                                            {method.label}
-                                        </Typography>
+                                        <Stack direction="row" spacing={1.25} alignItems="center">
+                                            <Box
+                                                sx={{
+                                                    width: 4,
+                                                    height: 28,
+                                                    borderRadius: 1,
+                                                    bgcolor: method.color || '#64748b',
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Typography variant="subtitle2" fontWeight={700} color="#1e293b" fontSize="0.825rem" noWrap>
+                                                    {method.shortLabel}
+                                                </Typography>
+                                                <Tooltip title={method.description || method.label} arrow placement="top">
+                                                    <Typography variant="caption" color="text.secondary" fontSize="0.7rem" display="block" noWrap>
+                                                        {method.label}
+                                                    </Typography>
+                                                </Tooltip>
+                                            </Box>
+                                        </Stack>
                                     </Box>
 
                                     {/* Evaluated Cells */}

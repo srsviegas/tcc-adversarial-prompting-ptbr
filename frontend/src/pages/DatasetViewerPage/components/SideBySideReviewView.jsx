@@ -21,6 +21,7 @@ import {
     faCheck,
     faTriangleExclamation,
     faCircleCheck,
+    faBolt,
 } from '@fortawesome/free-solid-svg-icons';
 import {
     findTranslationPairs,
@@ -283,6 +284,13 @@ export function SideBySideReviewView({ data, columns }) {
                     const hasError = rowAnomalies.some(
                         (a) => a.anomaly.severity === 'error',
                     );
+                    const hasRowInternetes = pairs.some(
+                        (p) =>
+                            p.internetes &&
+                            row[p.internetes] !== undefined &&
+                            row[p.internetes] !== null &&
+                            String(row[p.internetes]).trim() !== '',
+                    );
 
                     return (
                         <Card
@@ -319,15 +327,39 @@ export function SideBySideReviewView({ data, columns }) {
                                     gap: 1,
                                 }}
                             >
-                                <Chip
-                                    label={`#${row.id}`}
-                                    size="small"
-                                    sx={{
-                                        fontWeight: 700,
-                                        bgcolor: '#0f172a',
-                                        color: '#ffffff',
-                                    }}
-                                />
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <Chip
+                                        label={`#${row.id}`}
+                                        size="small"
+                                        sx={{
+                                            fontWeight: 700,
+                                            bgcolor: '#0f172a',
+                                            color: '#ffffff',
+                                        }}
+                                    />
+                                    {hasRowInternetes && (
+                                        <Chip
+                                            icon={
+                                                <FontAwesomeIcon
+                                                    icon={faBolt}
+                                                    style={{
+                                                        fontSize: '0.65rem',
+                                                        color: '#7c3aed',
+                                                    }}
+                                                />
+                                            }
+                                            label="Internetês Available"
+                                            size="small"
+                                            sx={{
+                                                bgcolor: '#f5f3ff',
+                                                color: '#7c3aed',
+                                                fontWeight: 700,
+                                                fontSize: '0.7rem',
+                                                border: '1px solid #ddd6fe',
+                                            }}
+                                        />
+                                    )}
+                                </Stack>
 
                                 {hasRowAnomaly && (
                                     <Chip
@@ -376,11 +408,28 @@ export function SideBySideReviewView({ data, columns }) {
                                         const trans = String(
                                             row[pair.translation] ?? '',
                                         );
+                                        const internetesText = pair.internetes
+                                            ? String(row[pair.internetes] ?? '')
+                                            : '';
+                                        const hasInternetes = Boolean(
+                                            pair.internetes &&
+                                                row[pair.internetes] !==
+                                                    undefined &&
+                                                row[pair.internetes] !== null &&
+                                                String(
+                                                    row[pair.internetes],
+                                                ).trim() !== '',
+                                        );
                                         const origWords = orig.trim()
                                             ? orig.trim().split(/\s+/).length
                                             : 0;
                                         const transWords = trans.trim()
                                             ? trans.trim().split(/\s+/).length
+                                            : 0;
+                                        const internetesWords = internetesText.trim()
+                                            ? internetesText
+                                                  .trim()
+                                                  .split(/\s+/).length
                                             : 0;
                                         const anomaly = checkCharacterAnomaly(
                                             orig,
@@ -392,6 +441,16 @@ export function SideBySideReviewView({ data, columns }) {
                                             orig.length > 0
                                                 ? Math.round(
                                                       (charDiff / orig.length) *
+                                                          100,
+                                                  )
+                                                : 0;
+                                        const internetesCharDiff =
+                                            internetesText.length - orig.length;
+                                        const internetesCharDiffPercent =
+                                            orig.length > 0
+                                                ? Math.round(
+                                                      (internetesCharDiff /
+                                                          orig.length) *
                                                           100,
                                                   )
                                                 : 0;
@@ -748,6 +807,153 @@ export function SideBySideReviewView({ data, columns }) {
                                                             )}
                                                         </Typography>
                                                     </Box>
+
+                                                    {/* internetes */}
+                                                    {hasInternetes && (
+                                                        <Box
+                                                            flex={1}
+                                                            p={2}
+                                                            bgcolor="#faf5ff"
+                                                        >
+                                                            <Stack
+                                                                direction="row"
+                                                                justifyContent="space-between"
+                                                                alignItems="center"
+                                                                mb={1}
+                                                            >
+                                                                <Stack
+                                                                    direction="row"
+                                                                    spacing={1}
+                                                                    alignItems="center"
+                                                                >
+                                                                    <Chip
+                                                                        icon={
+                                                                            <FontAwesomeIcon
+                                                                                icon={
+                                                                                    faBolt
+                                                                                }
+                                                                                style={{
+                                                                                    fontSize:
+                                                                                        '0.65rem',
+                                                                                    color: '#7c3aed',
+                                                                                }}
+                                                                            />
+                                                                        }
+                                                                        label="PT-BR (Internetês)"
+                                                                        size="small"
+                                                                        sx={{
+                                                                            height: 20,
+                                                                            bgcolor:
+                                                                                '#ede9fe',
+                                                                            color: '#6d28d9',
+                                                                            fontWeight: 700,
+                                                                            fontSize:
+                                                                                '0.65rem',
+                                                                            border: '1px solid #ddd6fe',
+                                                                        }}
+                                                                    />
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        color="text.secondary"
+                                                                    >
+                                                                        {internetesWords}{' '}
+                                                                        words ·{' '}
+                                                                        {
+                                                                            internetesText.length
+                                                                        }{' '}
+                                                                        chars
+                                                                        {orig.length >
+                                                                            0 && (
+                                                                            <Box
+                                                                                component="span"
+                                                                                sx={{
+                                                                                    ml: 0.75,
+                                                                                    px: 0.6,
+                                                                                    py: 0.15,
+                                                                                    borderRadius: 0.75,
+                                                                                    fontSize:
+                                                                                        '0.7rem',
+                                                                                    fontWeight: 600,
+                                                                                    bgcolor:
+                                                                                        '#f5f3ff',
+                                                                                    color: '#7c3aed',
+                                                                                    border: '1px solid #ddd6fe',
+                                                                                }}
+                                                                            >
+                                                                                Δ{' '}
+                                                                                {internetesCharDiff >
+                                                                                0
+                                                                                    ? `+${internetesCharDiff}`
+                                                                                    : internetesCharDiff}{' '}
+                                                                                chars
+                                                                                (
+                                                                                {internetesCharDiffPercent >
+                                                                                0
+                                                                                    ? `+${internetesCharDiffPercent}`
+                                                                                    : internetesCharDiffPercent}
+                                                                                %)
+                                                                            </Box>
+                                                                        )}
+                                                                    </Typography>
+                                                                </Stack>
+                                                                <Tooltip
+                                                                    title={
+                                                                        copiedKey ===
+                                                                        `${row.id}_${pair.internetes}`
+                                                                            ? 'Copied'
+                                                                            : 'Copy'
+                                                                    }
+                                                                >
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={() =>
+                                                                            handleCopy(
+                                                                                internetesText,
+                                                                                `${row.id}_${pair.internetes}`,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <FontAwesomeIcon
+                                                                            icon={
+                                                                                copiedKey ===
+                                                                                `${row.id}_${pair.internetes}`
+                                                                                    ? faCheck
+                                                                                    : faCopy
+                                                                            }
+                                                                            style={{
+                                                                                fontSize:
+                                                                                    '0.75rem',
+                                                                                color:
+                                                                                    copiedKey ===
+                                                                                    `${row.id}_${pair.internetes}`
+                                                                                        ? '#16a34a'
+                                                                                        : '#64748b',
+                                                                            }}
+                                                                        />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            </Stack>
+                                                            <Typography
+                                                                variant="body2"
+                                                                sx={{
+                                                                    whiteSpace:
+                                                                        'pre-wrap',
+                                                                    lineHeight: 1.6,
+                                                                    color: '#1e293b',
+                                                                }}
+                                                            >
+                                                                {internetesText || (
+                                                                    <em
+                                                                        style={{
+                                                                            color: '#94a3b8',
+                                                                        }}
+                                                                    >
+                                                                        Empty
+                                                                    </em>
+                                                                )}
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
                                                 </Stack>
                                             </Box>
                                         );

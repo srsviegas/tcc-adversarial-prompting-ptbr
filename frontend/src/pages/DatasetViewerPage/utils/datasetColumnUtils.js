@@ -5,19 +5,62 @@ export function findTranslationPairs(columnNames) {
     for (const col of columnNames) {
         if (handled.has(col)) continue;
 
-        if (col.endsWith('_pt')) {
-            const base = col.slice(0, -3);
-            if (columnNames.includes(base)) {
-                pairs.push({ original: base, translation: col, key: base });
-                handled.add(base);
-                handled.add(col);
-            }
+        let base = null;
+        let ptCol = null;
+
+        if (col.endsWith('_pt_internetes')) {
+            base = col.slice(0, -14);
+        } else if (col.endsWith('_internetes')) {
+            base = col.slice(0, -11);
+        } else if (col.endsWith('_pt')) {
+            base = col.slice(0, -3);
+            ptCol = col;
         } else {
             const ptVariant = `${col}_pt`;
             if (columnNames.includes(ptVariant)) {
-                pairs.push({ original: col, translation: ptVariant, key: col });
-                handled.add(col);
-                handled.add(ptVariant);
+                base = col;
+                ptCol = ptVariant;
+            } else if (
+                columnNames.includes(`${col}_pt_internetes`) ||
+                columnNames.includes(`${col}_internetes`)
+            ) {
+                base = col;
+            }
+        }
+
+        if (base && columnNames.includes(base)) {
+            if (!ptCol) {
+                const ptVariant = `${base}_pt`;
+                if (columnNames.includes(ptVariant)) {
+                    ptCol = ptVariant;
+                }
+            }
+
+            const internetesCandidates = [
+                `${base}_pt_internetes`,
+                `${base}_internetes`,
+                `${base}_pt_shitpost`,
+                `${base}_shitpost`,
+            ];
+
+            const internetesCol =
+                internetesCandidates.find((c) => columnNames.includes(c)) || null;
+
+            if (ptCol || internetesCol) {
+                pairs.push({
+                    key: base,
+                    original: base,
+                    translation: ptCol || null,
+                    internetes: internetesCol || null,
+                });
+
+                handled.add(base);
+                if (ptCol) handled.add(ptCol);
+                for (const c of internetesCandidates) {
+                    if (columnNames.includes(c)) {
+                        handled.add(c);
+                    }
+                }
             }
         }
     }
@@ -40,8 +83,9 @@ export function orderColumnsSideBySide(columnNames) {
     }
 
     for (const pair of pairs) {
-        pairedCols.push(pair.original);
-        pairedCols.push(pair.translation);
+        if (pair.original) pairedCols.push(pair.original);
+        if (pair.translation) pairedCols.push(pair.translation);
+        if (pair.internetes) pairedCols.push(pair.internetes);
     }
 
     for (const col of columnNames) {
@@ -55,6 +99,14 @@ export function orderColumnsSideBySide(columnNames) {
 
 export function formatDatasetHeader(field) {
     if (field === 'id') return 'ID';
+    if (field.endsWith('_pt_internetes')) {
+        const base = field.slice(0, -14).replace(/_/g, ' ');
+        return `${base} (Internetês)`;
+    }
+    if (field.endsWith('_internetes')) {
+        const base = field.slice(0, -11).replace(/_/g, ' ');
+        return `${base} (Internetês)`;
+    }
     if (field.endsWith('_pt')) {
         const base = field.slice(0, -3).replace(/_/g, ' ');
         return `${base} (PT-BR)`;
