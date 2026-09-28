@@ -3,6 +3,7 @@ from typing import Dict, Type
 from src.evaluators.base import BaseEvaluator
 from src.evaluators.openai_moderation import OpenAIModerationEvaluator
 from src.evaluators.aegis_llamaguard import AegisLlamaGuardEvaluator
+from src.evaluators.qwen_judge import QwenJudgeEvaluator
 
 
 class EvaluatorRegistry:
@@ -20,6 +21,16 @@ class EvaluatorRegistry:
         "llama_guard": AegisLlamaGuardEvaluator,
         "aegis_defensive": AegisLlamaGuardEvaluator,
         "aegis-defensive": AegisLlamaGuardEvaluator,
+        "qwen_judge": QwenJudgeEvaluator,
+        "qwen-judge": QwenJudgeEvaluator,
+        "qwen": QwenJudgeEvaluator,
+        "qwen_32b_judge": QwenJudgeEvaluator,
+        "qwen-32b-judge": QwenJudgeEvaluator,
+        "qwen2.5_judge": QwenJudgeEvaluator,
+        "qwen2.5-judge": QwenJudgeEvaluator,
+        "llm_judge": QwenJudgeEvaluator,
+        "llm-judge": QwenJudgeEvaluator,
+        "judge": QwenJudgeEvaluator,
     }
 
     @classmethod

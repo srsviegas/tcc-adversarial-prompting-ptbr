@@ -199,7 +199,14 @@ def run_evaluation(
                     "raw_response": None,
                 }
             else:
-                eval_result = evaluator.evaluate(extracted_text)
+                user_prompt = (
+                    record.get("inputs", {}).get("user_input_raw")
+                    or record.get("inputs", {}).get("user_prompt")
+                    or record.get("inputs", {}).get("plain_prompt")
+                    or record.get("dataset_metadata", {}).get("user_prompt")
+                    or ""
+                )
+                eval_result = evaluator.evaluate(extracted_text, user_prompt=user_prompt, record=record)
 
             # Update evaluations list
             if "evaluations" not in record or not isinstance(record["evaluations"], list):
@@ -214,6 +221,17 @@ def run_evaluation(
                     break
             if not replaced:
                 record["evaluations"].append(eval_result)
+
+            # Update top-level record["evaluation"] summary
+            if "evaluation" not in record or not isinstance(record["evaluation"], dict):
+                record["evaluation"] = {}
+            record["evaluation"].update({
+                "eval_method": evaluator.name,
+                "attack_success_rate_hit": eval_result.get("flagged"),
+                "judge_reasoning": eval_result.get("reasoning") or eval_result.get("judge_reasoning"),
+                "score": eval_result.get("score"),
+                "eval_date": eval_result.get("evaluated_at"),
+            })
 
             # Stream line-by-line to disk
             line_str = json.dumps(record, ensure_ascii=False) + "\n"

@@ -22,6 +22,7 @@ import {
     STANDARD_METHODS,
     STANDARD_MODELS,
     METHOD_CATEGORIES,
+    EXCLUDED_OVERVIEW_METHODS,
     parseLogFilename,
     getMethodMeta,
     getModelMeta,
@@ -103,7 +104,7 @@ export function OverviewMatrixView({
         const map = new Map();
         availableFiles.forEach((fileName) => {
             const parsed = parseLogFilename(fileName);
-            if (parsed) {
+            if (parsed && !EXCLUDED_OVERVIEW_METHODS.has(parsed.methodKey)) {
                 const key = `${parsed.methodKey}__${parsed.modelKey}`;
                 map.set(key, { fileName, ...parsed });
             }
@@ -115,7 +116,7 @@ export function OverviewMatrixView({
         const map = new Map();
         evaluatedFiles.forEach((fileName) => {
             const parsed = parseLogFilename(fileName);
-            if (parsed) {
+            if (parsed && !EXCLUDED_OVERVIEW_METHODS.has(parsed.methodKey)) {
                 const key = `${parsed.methodKey}__${parsed.modelKey}`;
                 map.set(key, { fileName, ...parsed });
             }
@@ -125,19 +126,33 @@ export function OverviewMatrixView({
 
     // Discover any additional methods or models not in standard catalog
     const allMethods = useMemo(() => {
-        const methodKeys = new Set(STANDARD_METHODS.map((m) => m.id));
-        generatedFileMapping.forEach((info) => methodKeys.add(info.methodKey));
-        evaluatedFileMapping.forEach((info) => methodKeys.add(info.methodKey));
+        const methodKeys = new Set(
+            STANDARD_METHODS
+                .filter((m) => !EXCLUDED_OVERVIEW_METHODS.has(m.id))
+                .map((m) => m.id)
+        );
+        generatedFileMapping.forEach((info) => {
+            if (!EXCLUDED_OVERVIEW_METHODS.has(info.methodKey)) {
+                methodKeys.add(info.methodKey);
+            }
+        });
+        evaluatedFileMapping.forEach((info) => {
+            if (!EXCLUDED_OVERVIEW_METHODS.has(info.methodKey)) {
+                methodKeys.add(info.methodKey);
+            }
+        });
 
         const ordered = [];
         STANDARD_METHODS.forEach((m) => {
-            if (methodKeys.has(m.id)) {
+            if (!EXCLUDED_OVERVIEW_METHODS.has(m.id) && methodKeys.has(m.id)) {
                 ordered.push(m);
                 methodKeys.delete(m.id);
             }
         });
         methodKeys.forEach((key) => {
-            ordered.push(getMethodMeta(key));
+            if (!EXCLUDED_OVERVIEW_METHODS.has(key)) {
+                ordered.push(getMethodMeta(key));
+            }
         });
         return ordered;
     }, [generatedFileMapping, evaluatedFileMapping]);
@@ -241,21 +256,27 @@ export function OverviewMatrixView({
 
         let totalGeneratedRows = 0;
         let totalGeneratedErrors = 0;
-        Object.values(generatedStatsMap).forEach((st) => {
-            totalGeneratedRows += st.rowCount || 0;
-            totalGeneratedErrors += st.failedCount || 0;
+        generatedFileMapping.forEach((info) => {
+            const st = generatedStatsMap[info.fileName];
+            if (st) {
+                totalGeneratedRows += st.rowCount || 0;
+                totalGeneratedErrors += st.failedCount || 0;
+            }
         });
 
         let totalEvaluatedRows = 0;
         let totalEvaluatedErrors = 0;
         let sumAsr = 0;
         let validAsrCount = 0;
-        Object.values(evaluatedStatsMap).forEach((st) => {
-            totalEvaluatedRows += st.evaluatedCount || 0;
-            totalEvaluatedErrors += st.errorCount || 0;
-            if (st.evaluatedCount > 0) {
-                sumAsr += st.overallAsr;
-                validAsrCount++;
+        evaluatedFileMapping.forEach((info) => {
+            const st = evaluatedStatsMap[info.fileName];
+            if (st) {
+                totalEvaluatedRows += st.evaluatedCount || 0;
+                totalEvaluatedErrors += st.errorCount || 0;
+                if (st.evaluatedCount > 0) {
+                    sumAsr += st.overallAsr;
+                    validAsrCount++;
+                }
             }
         });
 
@@ -310,8 +331,8 @@ export function OverviewMatrixView({
                     value={kpis.totalGeneratedRows.toLocaleString()}
                     subtitle={
                         kpis.totalGeneratedErrors > 0
-                            ? `${availableFiles.length} files (${kpis.totalGeneratedErrors.toLocaleString()} errors excluded)`
-                            : `${availableFiles.length} JSONL log files`
+                            ? `${kpis.generatedCount} files (${kpis.totalGeneratedErrors.toLocaleString()} errors excluded)`
+                            : `${kpis.generatedCount} JSONL log files`
                     }
                     icon={faDatabase}
                     iconColor="#059669"

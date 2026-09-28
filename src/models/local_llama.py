@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import traceback
 from pathlib import Path
@@ -13,6 +14,7 @@ from src.models.base import (
 
 _LOCAL_MODEL_INSTANCE = None
 _CURRENT_LOADED_MODEL_PATH = None
+_CURRENT_LOADED_N_CTX = None
 
 DEFAULT_LLAMA_MODEL_FILENAME = "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
 DEFAULT_LLAMA_MODEL_PATH = f"models/{DEFAULT_LLAMA_MODEL_FILENAME}"
@@ -128,11 +130,15 @@ def _get_or_load_llama(
     flash_attn: bool = True,
 ):
     """Loads and caches the GGUF model in VRAM."""
-    global _LOCAL_MODEL_INSTANCE, _CURRENT_LOADED_MODEL_PATH
+    global _LOCAL_MODEL_INSTANCE, _CURRENT_LOADED_MODEL_PATH, _CURRENT_LOADED_N_CTX
 
     resolved_path = resolve_model_path(model_path)
 
-    if _LOCAL_MODEL_INSTANCE is None or _CURRENT_LOADED_MODEL_PATH != resolved_path:
+    if (
+        _LOCAL_MODEL_INSTANCE is None
+        or _CURRENT_LOADED_MODEL_PATH != resolved_path
+        or _CURRENT_LOADED_N_CTX != n_ctx
+    ):
         try:
             from llama_cpp import Llama
         except ImportError as e:
@@ -156,6 +162,7 @@ def _get_or_load_llama(
             verbose=False,
         )
         _CURRENT_LOADED_MODEL_PATH = resolved_path
+        _CURRENT_LOADED_N_CTX = n_ctx
 
     return _LOCAL_MODEL_INSTANCE
 
@@ -163,7 +170,7 @@ def _get_or_load_llama(
 class LocalLlamaProvider(BaseModelProvider):
     """Provider implementation for local GGUF models via llama-cpp-python."""
 
-    def __init__(self, n_ctx: int = 4096):
+    def __init__(self, n_ctx: int = 8192):
         self.n_ctx = n_ctx
 
     def generate(
@@ -191,18 +198,55 @@ class LocalLlamaProvider(BaseModelProvider):
             flash_attn = kwargs.get("flash_attn", True)
             llm = _get_or_load_llama(model_name, n_ctx=n_ctx, n_gpu_layers=n_gpu_layers, flash_attn=flash_attn)
 
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
+            messages = []
+            if system_prompt and system_prompt.strip():
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": user_prompt})
 
-            response = llm.create_chat_completion(
-                messages=messages,
-                temperature=temperature,
-                top_p=top_p,
-                max_tokens=max_output_tokens,
-                seed=seed if seed is not None else -1,
-            )
+            # Dynamically compute safe token budget so (prompt_tokens + max_tokens) <= n_ctx
+            try:
+                actual_ctx = llm.n_ctx() if hasattr(llm, "n_ctx") and callable(llm.n_ctx) else n_ctx
+            except Exception:
+                actual_ctx = n_ctx
+
+            prompt_text = (system_prompt or "") + "\n" + user_prompt
+            try:
+                raw_tokens = llm.tokenize(prompt_text.encode("utf-8", errors="ignore"))
+                est_prompt_tokens = len(raw_tokens) + 64  # Reserve margin for chat template framing
+            except Exception:
+                est_prompt_tokens = (len(prompt_text) // 3) + 64
+
+            remaining_budget = max(1, actual_ctx - est_prompt_tokens)
+            effective_max_tokens = min(max_output_tokens, remaining_budget)
+
+            try:
+                response = llm.create_chat_completion(
+                    messages=messages,
+                    temperature=temperature,
+                    top_p=top_p,
+                    max_tokens=effective_max_tokens,
+                    seed=seed if seed is not None else -1,
+                )
+            except ValueError as ve:
+                err_msg = str(ve)
+                match = re.search(r"Requested tokens \((\d+)\) exceed context window of (\d+)", err_msg)
+                if match:
+                    requested_tokens = int(match.group(1))
+                    window_size = int(match.group(2))
+                    excess = requested_tokens - window_size
+                    retry_tokens = max(16, effective_max_tokens - excess - 16)
+                    if retry_tokens < effective_max_tokens:
+                        response = llm.create_chat_completion(
+                            messages=messages,
+                            temperature=temperature,
+                            top_p=top_p,
+                            max_tokens=retry_tokens,
+                            seed=seed if seed is not None else -1,
+                        )
+                    else:
+                        raise
+                else:
+                    raise
 
             latency = time.time() - start_time
 

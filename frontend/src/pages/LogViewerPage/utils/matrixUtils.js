@@ -11,6 +11,12 @@ export const METHOD_CATEGORIES = [
     { id: 'direct', label: 'Direct & Injections' },
 ];
 
+export const EXCLUDED_OVERVIEW_METHODS = new Set([
+    'toxicchat_stylized',
+    'toxicchat_stylized_regional_indicator',
+    'toxicchat_gcg',
+]);
+
 export const STANDARD_METHODS = [
     {
         id: 'pap',
@@ -51,14 +57,6 @@ export const STANDARD_METHODS = [
         category: 'direct',
         description: 'Targeted Prefix & Forced Affirmation',
         color: '#14b8a6',
-    },
-    {
-        id: 'toxicchat_gcg',
-        label: 'ToxicChat GCG',
-        shortLabel: 'GCG',
-        category: 'direct',
-        description: 'Greedy Coordinate Gradient Universal Adversarial Suffix',
-        color: '#e11d48',
     },
     {
         id: 'toxicchat_base64',
@@ -141,14 +139,6 @@ export const STANDARD_METHODS = [
         color: '#6366f1',
     },
     {
-        id: 'toxicchat_stylized_regional_indicator',
-        label: 'Stylized Regional Indicator',
-        shortLabel: 'Regional Ind.',
-        category: 'stylized',
-        description: 'Regional Indicator Letters & Keycaps (🇦🇧🇨... 0️⃣1️⃣...)',
-        color: '#d946ef',
-    },
-    {
         id: 'toxicchat_stylized_sans_bold_italic',
         label: 'Stylized Sans Bold Italic',
         shortLabel: 'Sans Bold Italic',
@@ -163,14 +153,6 @@ export const STANDARD_METHODS = [
         category: 'stylized',
         description: 'Mathematical Script with Sans Digits (𝒜𝐵𝒞... 𝟢𝟣𝟤...)',
         color: '#0ea5e9',
-    },
-    {
-        id: 'toxicchat_stylized',
-        label: 'ToxicChat Stylized (All)',
-        shortLabel: 'Stylized (All)',
-        category: 'stylized',
-        description: 'All Stylized Unicode character font obfuscations combined',
-        color: '#14b8a6',
     },
 ];
 

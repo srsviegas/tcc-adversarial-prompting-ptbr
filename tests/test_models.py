@@ -200,6 +200,36 @@ class TestModelsModule(unittest.TestCase):
             self.assertTrue(res["error_log"]["failed"])
             self.assertIn("llama-cpp-python", res["error_log"]["error_message"])
 
+    def test_local_llama_context_overflow_retry(self):
+        with patch("src.models.local_llama._get_or_load_llama") as mock_load:
+            mock_llm = MagicMock()
+            mock_llm.n_ctx.return_value = 4096
+            mock_llm.tokenize.return_value = [1] * 124
+            
+            # First call raises context window exceed ValueError, second call succeeds
+            mock_success_response = {
+                "choices": [{"message": {"content": "Recovered response"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 124, "completion_tokens": 20, "total_tokens": 144},
+            }
+            mock_llm.create_chat_completion.side_effect = [
+                ValueError("Requested tokens (4220) exceed context window of 4096"),
+                mock_success_response,
+            ]
+            mock_load.return_value = mock_llm
+
+            provider = LocalLlamaProvider(n_ctx=4096)
+            res = provider.generate(
+                model_name="models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+                system_prompt="sys",
+                user_prompt="hello",
+                max_output_tokens=4096,
+            )
+
+            self.assertFalse(res["error_log"]["failed"])
+            self.assertEqual(res["output"]["extracted_text"], "Recovered response")
+            self.assertEqual(mock_llm.create_chat_completion.call_count, 2)
+
+
     def test_deepseek_missing_dependency(self):
         with patch("src.models.deepseek_r1.get_or_load_deepseek") as mock_load:
             mock_load.side_effect = ImportError("llama-cpp-python is required...")

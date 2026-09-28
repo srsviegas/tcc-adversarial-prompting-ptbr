@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import traceback
 from pathlib import Path
@@ -13,6 +14,7 @@ from src.models.base import (
 
 _GEMMA_MODEL_INSTANCE = None
 _CURRENT_GEMMA_MODEL_PATH = None
+_CURRENT_GEMMA_N_CTX = None
 
 DEFAULT_GEMMA_MODEL_FILENAME = "gemma-4-12B-it-Q4_K_M.gguf"
 DEFAULT_GEMMA_MODEL_PATH = f"models/{DEFAULT_GEMMA_MODEL_FILENAME}"
@@ -142,11 +144,15 @@ def get_or_load_gemma(
     flash_attn: bool = True,
 ):
     """Loads and caches the Gemma GGUF model in VRAM."""
-    global _GEMMA_MODEL_INSTANCE, _CURRENT_GEMMA_MODEL_PATH
+    global _GEMMA_MODEL_INSTANCE, _CURRENT_GEMMA_MODEL_PATH, _CURRENT_GEMMA_N_CTX
 
     resolved_path = resolve_gemma_model_path(model_path)
 
-    if _GEMMA_MODEL_INSTANCE is None or _CURRENT_GEMMA_MODEL_PATH != resolved_path:
+    if (
+        _GEMMA_MODEL_INSTANCE is None
+        or _CURRENT_GEMMA_MODEL_PATH != resolved_path
+        or _CURRENT_GEMMA_N_CTX != n_ctx
+    ):
         try:
             from llama_cpp import Llama
         except ImportError as e:
@@ -174,6 +180,7 @@ def get_or_load_gemma(
             verbose=False,
         )
         _CURRENT_GEMMA_MODEL_PATH = resolved_path
+        _CURRENT_GEMMA_N_CTX = n_ctx
 
     return _GEMMA_MODEL_INSTANCE
 
@@ -239,13 +246,50 @@ class Gemma4Provider(BaseModelProvider):
             else:
                 messages.append({"role": "user", "content": user_prompt})
 
-            response = llm.create_chat_completion(
-                messages=messages,
-                temperature=temperature,
-                top_p=top_p,
-                max_tokens=max_output_tokens,
-                seed=seed if seed is not None else -1,
-            )
+            # Dynamically compute safe token budget so (prompt_tokens + max_tokens) <= n_ctx
+            try:
+                actual_ctx = llm.n_ctx() if hasattr(llm, "n_ctx") and callable(llm.n_ctx) else n_ctx
+            except Exception:
+                actual_ctx = n_ctx
+
+            prompt_text = (system_prompt or "") + "\n" + user_prompt
+            try:
+                raw_tokens = llm.tokenize(prompt_text.encode("utf-8", errors="ignore"))
+                est_prompt_tokens = len(raw_tokens) + 64
+            except Exception:
+                est_prompt_tokens = (len(prompt_text) // 3) + 64
+
+            remaining_budget = max(1, actual_ctx - est_prompt_tokens)
+            effective_max_tokens = min(max_output_tokens, remaining_budget)
+
+            try:
+                response = llm.create_chat_completion(
+                    messages=messages,
+                    temperature=temperature,
+                    top_p=top_p,
+                    max_tokens=effective_max_tokens,
+                    seed=seed if seed is not None else -1,
+                )
+            except ValueError as ve:
+                err_msg = str(ve)
+                match = re.search(r"Requested tokens \((\d+)\) exceed context window of (\d+)", err_msg)
+                if match:
+                    requested_tokens = int(match.group(1))
+                    window_size = int(match.group(2))
+                    excess = requested_tokens - window_size
+                    retry_tokens = max(16, effective_max_tokens - excess - 16)
+                    if retry_tokens < effective_max_tokens:
+                        response = llm.create_chat_completion(
+                            messages=messages,
+                            temperature=temperature,
+                            top_p=top_p,
+                            max_tokens=retry_tokens,
+                            seed=seed if seed is not None else -1,
+                        )
+                    else:
+                        raise
+                else:
+                    raise
 
             latency = time.time() - start_time
 
