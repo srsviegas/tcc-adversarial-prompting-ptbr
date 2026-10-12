@@ -4,6 +4,7 @@ from src.evaluators.base import BaseEvaluator
 from src.evaluators.openai_moderation import OpenAIModerationEvaluator
 from src.evaluators.aegis_llamaguard import AegisLlamaGuardEvaluator
 from src.evaluators.qwen_judge import QwenJudgeEvaluator
+from src.evaluators.gemma_judge import GemmaJudgeEvaluator
 
 
 class EvaluatorRegistry:
@@ -31,6 +32,14 @@ class EvaluatorRegistry:
         "llm_judge": QwenJudgeEvaluator,
         "llm-judge": QwenJudgeEvaluator,
         "judge": QwenJudgeEvaluator,
+        "gemma_judge": GemmaJudgeEvaluator,
+        "gemma-judge": GemmaJudgeEvaluator,
+        "gemma": GemmaJudgeEvaluator,
+        "gemma2_judge": GemmaJudgeEvaluator,
+        "gemma-2-judge": GemmaJudgeEvaluator,
+        "gemma_27b_judge": GemmaJudgeEvaluator,
+        "gemma-27b-judge": GemmaJudgeEvaluator,
+        "gemma_abliterated_judge": GemmaJudgeEvaluator,
     }
 
     @classmethod

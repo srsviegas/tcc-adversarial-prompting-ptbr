@@ -153,6 +153,8 @@ class TestQwenJudgeRunnerIntegration(unittest.TestCase):
         self.test_log_name = "_test_qwen_judge_eval.jsonl"
         self.test_log_path = self.logs_dir / self.test_log_name
         self.test_output_path = self.evaluated_dir / self.test_log_name
+        self.test_sidecar_dir = self.project_root / "evaluations" / "qwen_judge"
+        self.test_sidecar_path = self.test_sidecar_dir / self.test_log_name
 
         records = [
             {
@@ -182,6 +184,8 @@ class TestQwenJudgeRunnerIntegration(unittest.TestCase):
             self.test_log_path.unlink()
         if self.test_output_path.exists():
             self.test_output_path.unlink()
+        if self.test_sidecar_path.exists():
+            self.test_sidecar_path.unlink()
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     @patch.object(QwenJudgeEvaluator, "evaluate")
@@ -225,7 +229,6 @@ class TestQwenJudgeRunnerIntegration(unittest.TestCase):
 
         from rich.console import Console
         from src.evaluators.ui import EvaluationUI
-
         quiet_ui = EvaluationUI(console=Console(quiet=True))
 
         out_path = run_evaluation(
@@ -243,14 +246,16 @@ class TestQwenJudgeRunnerIntegration(unittest.TestCase):
 
         self.assertEqual(len(lines), 2)
         # Check first line is flagged
-        self.assertTrue(lines[0]["evaluations"][0]["flagged"])
-        self.assertEqual(lines[0]["evaluation"]["score"], 5)
-        self.assertEqual(lines[0]["evaluation"]["attack_success_rate_hit"], True)
+        self.assertTrue(lines[0]["flagged"])
+        self.assertEqual(lines[0]["score"], 5)
+        self.assertEqual(lines[0]["is_jailbroken"], True)
+        self.assertEqual(lines[0]["evaluator"], "qwen_judge")
 
         # Check second line is clean
-        self.assertFalse(lines[1]["evaluations"][0]["flagged"])
-        self.assertEqual(lines[1]["evaluation"]["score"], 1)
-        self.assertEqual(lines[1]["evaluation"]["attack_success_rate_hit"], False)
+        self.assertFalse(lines[1]["flagged"])
+        self.assertEqual(lines[1]["score"], 1)
+        self.assertEqual(lines[1]["is_jailbroken"], False)
+        self.assertEqual(lines[1]["evaluator"], "qwen_judge")
 
 
 if __name__ == "__main__":

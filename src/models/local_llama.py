@@ -205,14 +205,15 @@ class LocalLlamaProvider(BaseModelProvider):
 
             # Dynamically compute safe token budget so (prompt_tokens + max_tokens) <= n_ctx
             try:
-                actual_ctx = llm.n_ctx() if hasattr(llm, "n_ctx") and callable(llm.n_ctx) else n_ctx
+                ctx_val = llm.n_ctx() if hasattr(llm, "n_ctx") and callable(llm.n_ctx) else n_ctx
+                actual_ctx = ctx_val if isinstance(ctx_val, int) else n_ctx
             except Exception:
                 actual_ctx = n_ctx
 
             prompt_text = (system_prompt or "") + "\n" + user_prompt
             try:
                 raw_tokens = llm.tokenize(prompt_text.encode("utf-8", errors="ignore"))
-                est_prompt_tokens = len(raw_tokens) + 64  # Reserve margin for chat template framing
+                est_prompt_tokens = len(raw_tokens) + 64 if isinstance(raw_tokens, (list, bytes, tuple)) else (len(prompt_text) // 3) + 64  # Reserve margin for chat template framing
             except Exception:
                 est_prompt_tokens = (len(prompt_text) // 3) + 64
 

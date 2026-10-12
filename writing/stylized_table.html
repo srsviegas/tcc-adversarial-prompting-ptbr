@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: auto;
+            margin: 0;
+        }
+
+        body {
+            font-family: "Times New Roman", Times, serif;
+            background: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        table {
+            border-collapse: collapse;
+            font-size: 14px;
+            color: black;
+        }
+
+        th,
+        td {
+            padding: 6px 16px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        thead tr {
+            border-top: 1.5px solid black;
+            border-bottom: 1px solid black;
+        }
+
+        tbody tr:last-child {
+            border-bottom: 1.5px solid black;
+        }
+
+        .spacer {
+            height: 6px;
+        }
+
+        .styled {
+            font-family: system-ui, -apple-system, "Segoe UI", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif;
+        }
+    </style>
+</head>
+
+<body>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Style</th>
+                <th>Example</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Plaintext (Baseline)</td>
+                <td>This is a Stylized text</td>
+            </tr>
+            <tr class="spacer"></tr>
+            <tr>
+                <td>Mathematical Bold Fraktur</td>
+                <td class="styled">𝕿𝖍𝖎𝖘 𝖎𝖘 𝖆 𝕾𝖙𝖞𝖑𝖎𝖟𝖊𝖉 𝖙𝖊𝖝𝖙</td>
+            </tr>
+            <tr>
+                <td>Mathematical Bold Script</td>
+                <td class="styled">𝓣𝓱𝓲𝓼 𝓲𝓼 𝓪 𝓢𝓽𝔂𝓵𝓲𝔃𝓮𝓭 𝓽𝓮𝔁𝓽</td>
+            </tr>
+            <tr>
+                <td>Mathematical Script with Sans Digits</td>
+                <td class="styled">𝒯𝒽𝒾𝓈 𝒾𝓈 𝒶 𝒮𝓉𝓎𝓁𝒾𝓏𝑒𝒹 𝓉𝑒𝓍𝓉</td>
+            </tr>
+            <tr>
+                <td>Mathematical Double-Struck (Blackboard Bold)</td>
+                <td class="styled">𝕋𝕙𝕚𝕤 𝕚𝕤 𝕒 𝕊𝕥𝕪𝕝𝕚𝕫𝕖𝕕 𝕥𝕖𝕩𝕥</td>
+            </tr>
+            <tr>
+                <td>Fullwidth (Wide Unicode)</td>
+                <td class="styled">Ｔｈｉｓ&nbsp;&nbsp;ｉｓ&nbsp;&nbsp;ａ&nbsp;&nbsp;Ｓｔｙｌｉｚｅｄ&nbsp;&nbsp;ｔｅｘｔ</td>
+            </tr>
+            <tr>
+                <td>Regional Indicator Letters &amp; Keycaps</td>
+                <td class="styled">🇹🇭🇮🇸 🇮🇸 🇦 🇸🇹🇾🇱🇮🇿🇪🇩 🇹🇪🇽🇹</td>
+            </tr>
+            <tr>
+                <td>Mathematical Bold</td>
+                <td class="styled">𝐓𝐡𝐢𝐬 𝐢𝐬 𝐚 𝐒𝐭𝐲𝐥𝐢𝐳𝐞𝐝 𝐭𝐞𝐱𝐭</td>
+            </tr>
+            <tr>
+                <td>Mathematical Sans-Serif Bold Italic</td>
+                <td class="styled">𝙏𝙝𝙞𝙨 𝙞𝙨 𝙖 𝙎𝙩𝙮𝙡𝙞𝙯𝙚𝙙 𝙩𝙚𝙭𝙩</td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+
+</html>

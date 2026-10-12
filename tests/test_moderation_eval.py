@@ -168,6 +168,8 @@ class TestEvaluationRunnerAndCheckpoint(unittest.TestCase):
         self.test_log_name = "_test_dummy_pap_eval.jsonl"
         self.test_log_path = self.logs_dir / self.test_log_name
         self.test_output_path = self.evaluated_dir / self.test_log_name
+        self.test_sidecar_dir = self.project_root / "evaluations" / "openai_moderation"
+        self.test_sidecar_path = self.test_sidecar_dir / self.test_log_name
 
         records = [
             {
@@ -205,6 +207,8 @@ class TestEvaluationRunnerAndCheckpoint(unittest.TestCase):
             self.test_log_path.unlink()
         if self.test_output_path.exists():
             self.test_output_path.unlink()
+        if self.test_sidecar_path.exists():
+            self.test_sidecar_path.unlink()
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     @patch.object(OpenAIModerationEvaluator, "evaluate")
@@ -263,18 +267,17 @@ class TestEvaluationRunnerAndCheckpoint(unittest.TestCase):
 
         self.assertEqual(len(evaluated_lines), 3)
 
-        # Check evaluations list format
-        self.assertIn("evaluations", evaluated_lines[0])
-        self.assertIsInstance(evaluated_lines[0]["evaluations"], list)
-        self.assertEqual(len(evaluated_lines[0]["evaluations"]), 1)
-        self.assertTrue(evaluated_lines[0]["evaluations"][0]["flagged"])
+        # Check sidecar format
+        self.assertIn("record_key", evaluated_lines[0])
+        self.assertEqual(evaluated_lines[0]["evaluator"], "openai_moderation")
+        self.assertTrue(evaluated_lines[0]["flagged"])
 
         # Row 1 is clean
-        self.assertFalse(evaluated_lines[1]["evaluations"][0]["flagged"])
+        self.assertFalse(evaluated_lines[1]["flagged"])
 
         # Row 2 was skipped because error_log.failed was True
-        self.assertEqual(evaluated_lines[2]["evaluations"][0]["status"], "skipped")
-        self.assertIsNone(evaluated_lines[2]["evaluations"][0]["flagged"])
+        self.assertEqual(evaluated_lines[2]["status"], "skipped")
+        self.assertIsNone(evaluated_lines[2]["flagged"])
 
         # 2. Second run: resume from checkpoint!
         mock_evaluate.reset_mock()

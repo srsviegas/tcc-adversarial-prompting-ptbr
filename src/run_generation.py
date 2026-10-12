@@ -58,7 +58,7 @@ def run_benchmark(
     api_keys: Optional[Union[str, List[str]]] = None,
     max_workers: Optional[int] = None,
     filter_label: str = "all",
-    eval_aegis: bool = True,
+    eval_aegis: bool = False,
     max_rows: Optional[int] = None,
 ):
     if dataset_type in ("toxicchat_cipher", "toxicchat_obfuscation"):
@@ -487,30 +487,7 @@ def run_benchmark(
     )
 
     log_filepath_str = str(logger.log_filepath)
-    if eval_aegis:
-        _run_aegis_on_log(log_filepath_str)
-
     return [log_filepath_str]
-
-
-def _run_aegis_on_log(log_filepath: str) -> None:
-    """Invokes scripts/evaluate_aegis.py on the given log file in an isolated subprocess."""
-    import subprocess
-    eval_script = Path(__file__).resolve().parent.parent / "scripts" / "evaluate_aegis.py"
-    if not eval_script.exists():
-        return
-
-    log_name = Path(log_filepath).name
-    print(f"\n{'='*75}")
-    print(f"[*] Automatically evaluating safety with Aegis on: {log_name}")
-    print(f"{'='*75}\n")
-
-    try:
-        subprocess.run([sys.executable, str(eval_script), str(log_filepath)], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"\n[!] Aegis evaluation process exited with error code {e.returncode} for {log_name}")
-    except Exception as e:
-        print(f"\n[!] Could not run Aegis evaluation for {log_name}: {e}")
 
 
 def parse_args():
@@ -529,7 +506,7 @@ def parse_args():
     parser.add_argument("--api-keys", type=str, nargs="+", default=None, help="List of Gemini API keys for rotation")
     parser.add_argument("--max-workers", type=int, default=None, help="Number of concurrent worker threads (default: matches available API keys for Gemini, or 1 for local)")
     parser.add_argument("--filter-label", type=str, default="all", choices=["all", "malicious", "jailbreak", "benign", "toxic"], help="Filter ToxicChat dataset rows by label ('all', 'malicious', 'jailbreak', 'benign', 'toxic')")
-    parser.add_argument("--eval-aegis", action=argparse.BooleanOptionalAction, default=True, help="Automatically run Aegis evaluation on output log after completion (default: True)")
+    parser.add_argument("--eval-aegis", action=argparse.BooleanOptionalAction, default=False, help="Deprecated/Disabled: evaluations are handled as separate processes")
     parser.add_argument("--max-rows", type=int, default=None, help="Maximum number of dataset rows to process")
     parser.add_argument("--test", action="store_true", default=False, help="Run test mode: first 10 rows of each type")
     return parser.parse_args()

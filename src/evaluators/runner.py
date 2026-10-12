@@ -3,24 +3,35 @@ import os
 import time
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from src.evaluators.base import BaseEvaluator
 from src.evaluators.registry import EvaluatorRegistry
+from src.evaluators.sidecar import (
+    extract_judge_sidecar,
+    extract_llamaguard_sidecar,
+    generate_record_key,
+)
 from src.evaluators.ui import EvaluationUI
 
 
-def get_record_key(record: dict, fallback_idx: int) -> str:
+def get_record_key(record: dict, fallback_idx: int = 0) -> str:
     """Generates a deterministic unique key for a log record."""
-    pid = record.get("dataset_metadata", {}).get("original_row_index")
-    mname = record.get("model_config", {}).get("model_name")
-    lang = record.get("inputs", {}).get("prompt_language")
-    style = record.get("inputs", {}).get("attack_style")
-    iteration = record.get("run_metadata", {}).get("iteration")
+    return generate_record_key(record, fallback_idx)
 
-    if pid is not None and all([mname, lang, style, iteration]):
-        return f"{pid}::{mname}::{lang}::{style}::{iteration}"
-    return f"line_{fallback_idx}"
+
+def get_canonical_evaluator_folder(evaluator_name: str) -> str:
+    """Maps evaluator names/aliases to their canonical evaluations/ subfolder."""
+    key = str(evaluator_name).lower().replace("-", "_")
+    if any(k in key for k in ("aegis", "llama", "guard")):
+        return "llamaguard"
+    elif "qwen" in key:
+        return "qwen_judge"
+    elif "gemma" in key:
+        return "gemma_judge"
+    elif "openai" in key or "moderation" in key:
+        return "openai_moderation"
+    return key
 
 
 def resolve_log_path(log_path: str) -> Path:
@@ -48,17 +59,15 @@ def run_evaluation(
     force_reevaluate: bool = False,
     delay_sec: float = 0.0,
     ui: Optional[EvaluationUI] = None,
+    output_dir: Optional[Union[str, Path]] = None,
     **kwargs: Any,
 ) -> Path:
     """
     Evaluates responses from an existing benchmark JSONL log file using the specified evaluator.
-    Saves results line-by-line into logs/evaluated/<filename>.jsonl with checkpoint support.
+    Directly commits lightweight sidecar records into evaluations/<evaluator>/<filename>.jsonl.
     """
     resolved_input_path = resolve_log_path(log_file)
     project_root = Path(__file__).resolve().parent.parent.parent
-    evaluated_dir = project_root / "logs" / "evaluated"
-    evaluated_dir.mkdir(parents=True, exist_ok=True)
-    output_path = evaluated_dir / resolved_input_path.name
 
     eval_kwargs = dict(kwargs)
     if api_key:
@@ -71,6 +80,12 @@ def run_evaluation(
         evaluator_name,
         **eval_kwargs,
     )
+
+    evaluator_folder = get_canonical_evaluator_folder(evaluator.name)
+    evaluations_root = project_root / "evaluations"
+    evaluated_dir = Path(output_dir).resolve() if output_dir else (evaluations_root / evaluator_folder)
+    evaluated_dir.mkdir(parents=True, exist_ok=True)
+    output_path = evaluated_dir / resolved_input_path.name
 
     if ui is None:
         ui = EvaluationUI()
@@ -91,7 +106,7 @@ def run_evaluation(
         ui.log_error(f"Source log file '{resolved_input_path.name}' is empty.")
         return output_path
 
-    # 2. Checkpoint recovery from output_path
+    # 2. Checkpoint recovery from output_path (Sidecar and legacy formats)
     completed_cache: Dict[str, Dict[str, Any]] = {}
     valid_existing_lines: List[str] = []
 
@@ -102,20 +117,74 @@ def run_evaluation(
                 if not line_str:
                     continue
                 try:
-                    record = json.loads(line_str)
-                    key = get_record_key(record, idx)
-                    evaluations = record.get("evaluations", [])
-                    # Check if already evaluated by this evaluator and successful or skipped
-                    has_eval = any(
-                        ev.get("evaluator") == evaluator.name
-                        and ev.get("status") in ("success", "skipped")
-                        for ev in evaluations
-                    )
-                    if has_eval:
-                        completed_cache[key] = record
-                        valid_existing_lines.append(json.dumps(record, ensure_ascii=False) + "\n")
+                    record_data = json.loads(line_str)
+                    key = record_data.get("record_key") or generate_record_key(record_data, idx)
+
+                    # Check 1: Lightweight sidecar format
+                    if "status" in record_data and ("flagged" in record_data or "score" in record_data):
+                        if record_data.get("status") in ("success", "skipped"):
+                            completed_cache[key] = record_data
+                            valid_existing_lines.append(json.dumps(record_data, ensure_ascii=False) + "\n")
+                    # Check 2: Legacy full log format
+                    elif "evaluations" in record_data:
+                        evaluations = record_data.get("evaluations", [])
+                        has_eval = any(
+                            (ev.get("evaluator") == evaluator.name or evaluator_folder in str(ev.get("evaluator", "")).lower())
+                            and ev.get("status") in ("success", "skipped")
+                            for ev in evaluations
+                        )
+                        if has_eval:
+                            completed_cache[key] = record_data
+                            sidecar = (
+                                extract_llamaguard_sidecar(record_data, idx)
+                                if evaluator_folder == "llamaguard"
+                                else extract_judge_sidecar(record_data, idx, target_evaluator=evaluator_folder)
+                            )
+                            if sidecar:
+                                valid_existing_lines.append(json.dumps(sidecar, ensure_ascii=False) + "\n")
+                            else:
+                                valid_existing_lines.append(json.dumps(record_data, ensure_ascii=False) + "\n")
                 except json.JSONDecodeError:
                     continue
+
+    # 2b. Also scan legacy directories for any previously evaluated rows not yet in sidecar
+    if not force_reevaluate:
+        legacy_candidates = [
+            project_root / "logs" / "evaluated" / resolved_input_path.name,
+            project_root / "logs" / "evaluated_old" / resolved_input_path.name,
+        ]
+        for leg_path in legacy_candidates:
+            if leg_path.is_file() and leg_path != output_path:
+                try:
+                    with open(leg_path, "r", encoding="utf-8") as f:
+                        for idx, line in enumerate(f):
+                            line_str = line.strip()
+                            if not line_str:
+                                continue
+                            try:
+                                record_data = json.loads(line_str)
+                                key = record_data.get("record_key") or generate_record_key(record_data, idx)
+                                if key in completed_cache:
+                                    continue
+                                evaluations = record_data.get("evaluations", [])
+                                has_eval = any(
+                                    (ev.get("evaluator") == evaluator.name or evaluator_folder in str(ev.get("evaluator", "")).lower())
+                                    and ev.get("status") in ("success", "skipped")
+                                    for ev in evaluations
+                                )
+                                if has_eval:
+                                    completed_cache[key] = record_data
+                                    sidecar = (
+                                        extract_llamaguard_sidecar(record_data, idx)
+                                        if evaluator_folder == "llamaguard"
+                                        else extract_judge_sidecar(record_data, idx, target_evaluator=evaluator_folder)
+                                    )
+                                    if sidecar:
+                                        valid_existing_lines.append(json.dumps(sidecar, ensure_ascii=False) + "\n")
+                            except json.JSONDecodeError:
+                                continue
+                except Exception:
+                    pass
 
     checkpoint_count = len(completed_cache)
 
@@ -133,7 +202,7 @@ def run_evaluation(
     # 3. UI Header
     ui.show_header(
         source_log=resolved_input_path.name,
-        output_log=f"logs/evaluated/{output_path.name}",
+        output_log=f"evaluations/{evaluator_folder}/{output_path.name}",
         evaluator_name=evaluator.name,
         model=getattr(evaluator, "model", model),
         total_rows=total_records,
@@ -153,23 +222,36 @@ def run_evaluation(
     category_counter = Counter()
 
     # Count existing checkpoint metrics
-    for record in completed_cache.values():
-        for ev in record.get("evaluations", []):
-            if ev.get("evaluator") == evaluator.name:
-                if ev.get("status") == "skipped":
-                    skipped_count += 1
-                elif ev.get("status") == "error":
-                    error_count += 1
-                elif ev.get("flagged"):
-                    flagged_count += 1
-                    for cat in ev.get("flagged_categories", []):
-                        category_counter[cat] += 1
-                else:
-                    clean_count += 1
+    for record_data in completed_cache.values():
+        if "status" in record_data and ("flagged" in record_data or "score" in record_data):
+            st = record_data.get("status")
+            if st == "skipped":
+                skipped_count += 1
+            elif st == "error":
+                error_count += 1
+            elif record_data.get("flagged"):
+                flagged_count += 1
+                for cat in record_data.get("flagged_categories", []):
+                    category_counter[cat] += 1
+            else:
+                clean_count += 1
+        else:
+            for ev in record_data.get("evaluations", []):
+                if ev.get("evaluator") == evaluator.name or evaluator_folder in str(ev.get("evaluator", "")).lower():
+                    if ev.get("status") == "skipped":
+                        skipped_count += 1
+                    elif ev.get("status") == "error":
+                        error_count += 1
+                    elif ev.get("flagged"):
+                        flagged_count += 1
+                        for cat in ev.get("flagged_categories", []):
+                            category_counter[cat] += 1
+                    else:
+                        clean_count += 1
 
     with open(output_path, "a", encoding="utf-8") as out_f:
         for idx, record in enumerate(source_records):
-            key = get_record_key(record, idx)
+            key = generate_record_key(record, idx)
 
             # Skip if already evaluated in checkpoint
             if key in completed_cache:
@@ -195,7 +277,6 @@ def run_evaluation(
                     "highest_score": 0.0,
                     "categories": {},
                     "category_scores": {},
-                    "category_applied_input_types": {},
                     "raw_response": None,
                 }
             else:
@@ -208,33 +289,34 @@ def run_evaluation(
                 )
                 eval_result = evaluator.evaluate(extracted_text, user_prompt=user_prompt, record=record)
 
-            # Update evaluations list
-            if "evaluations" not in record or not isinstance(record["evaluations"], list):
-                record["evaluations"] = []
+            status = eval_result.get("status", "success")
+            flagged = eval_result.get("flagged")
+            flagged_cats = eval_result.get("flagged_categories", [])
+            highest_cat = eval_result.get("highest_scoring_category")
+            highest_score = eval_result.get("highest_score", 0.0)
+            latency = eval_result.get("latency_seconds", 0.0)
 
-            # Replace existing evaluator entry if any, otherwise append
-            replaced = False
-            for e_idx, existing_ev in enumerate(record["evaluations"]):
-                if existing_ev.get("evaluator") == evaluator.name:
-                    record["evaluations"][e_idx] = eval_result
-                    replaced = True
-                    break
-            if not replaced:
-                record["evaluations"].append(eval_result)
-
-            # Update top-level record["evaluation"] summary
-            if "evaluation" not in record or not isinstance(record["evaluation"], dict):
-                record["evaluation"] = {}
-            record["evaluation"].update({
-                "eval_method": evaluator.name,
-                "attack_success_rate_hit": eval_result.get("flagged"),
-                "judge_reasoning": eval_result.get("reasoning") or eval_result.get("judge_reasoning"),
+            # Build lightweight sidecar record
+            sidecar_record = {
+                "record_key": key,
+                "line_idx": idx,
+                "original_row_index": record.get("dataset_metadata", {}).get("original_row_index"),
+                "evaluator": evaluator_folder,
+                "model": getattr(evaluator, "model", model),
+                "status": status,
+                "flagged": flagged,
                 "score": eval_result.get("score"),
-                "eval_date": eval_result.get("evaluated_at"),
-            })
+                "is_jailbroken": eval_result.get("is_jailbroken"),
+                "verdict": eval_result.get("verdict"),
+                "reasoning": eval_result.get("reasoning") or eval_result.get("judge_reasoning"),
+                "flagged_categories": flagged_cats,
+                "latency_seconds": round(latency, 4),
+                "evaluated_at": eval_result.get("evaluated_at"),
+                "error_message": eval_result.get("error_message"),
+            }
 
-            # Stream line-by-line to disk
-            line_str = json.dumps(record, ensure_ascii=False) + "\n"
+            # Stream lightweight record directly to disk
+            line_str = json.dumps(sidecar_record, ensure_ascii=False) + "\n"
             out_f.write(line_str)
             out_f.flush()
             os.fsync(out_f.fileno())

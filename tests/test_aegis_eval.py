@@ -183,6 +183,8 @@ class TestAegisEvaluationRunner(unittest.TestCase):
         self.test_log_name = "_test_dummy_aegis_eval.jsonl"
         self.test_log_path = self.logs_dir / self.test_log_name
         self.test_output_path = self.evaluated_dir / self.test_log_name
+        self.test_sidecar_dir = self.project_root / "evaluations" / "llamaguard"
+        self.test_sidecar_path = self.test_sidecar_dir / self.test_log_name
 
         # Row 0: has previous openai evaluation already
         # Row 1: clean row
@@ -221,6 +223,8 @@ class TestAegisEvaluationRunner(unittest.TestCase):
             self.test_log_path.unlink()
         if self.test_output_path.exists():
             self.test_output_path.unlink()
+        if self.test_sidecar_path.exists():
+            self.test_sidecar_path.unlink()
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     @patch.object(AegisLlamaGuardEvaluator, "evaluate")
@@ -272,19 +276,14 @@ class TestAegisEvaluationRunner(unittest.TestCase):
 
         self.assertEqual(len(evaluated_lines), 2)
 
-        # In row 0: evaluations should have BOTH openai_moderation AND aegis_llamaguard!
-        row0_evals = evaluated_lines[0]["evaluations"]
-        self.assertEqual(len(row0_evals), 2)
-        self.assertEqual(row0_evals[0]["evaluator"], "openai_moderation")
-        self.assertEqual(row0_evals[1]["evaluator"], "aegis_llamaguard")
-        self.assertTrue(row0_evals[1]["flagged"])
-        self.assertEqual(row0_evals[1]["flagged_categories"], ["Violence"])
+        # In row 0: sidecar contains llamaguard evaluation
+        self.assertEqual(evaluated_lines[0]["evaluator"], "llamaguard")
+        self.assertTrue(evaluated_lines[0]["flagged"])
+        self.assertEqual(evaluated_lines[0]["flagged_categories"], ["Violence"])
 
-        # In row 1: evaluations should have 1 entry (aegis_llamaguard)
-        row1_evals = evaluated_lines[1]["evaluations"]
-        self.assertEqual(len(row1_evals), 1)
-        self.assertEqual(row1_evals[0]["evaluator"], "aegis_llamaguard")
-        self.assertFalse(row1_evals[0]["flagged"])
+        # In row 1: sidecar contains llamaguard evaluation
+        self.assertEqual(evaluated_lines[1]["evaluator"], "llamaguard")
+        self.assertFalse(evaluated_lines[1]["flagged"])
 
 
 if __name__ == "__main__":
