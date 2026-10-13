@@ -3,13 +3,14 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box, Tabs, Tab, Stack, Typography } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileLines, faDatabase } from '@fortawesome/free-solid-svg-icons';
+import { faFileLines, faDatabase, faScaleBalanced } from '@fortawesome/free-solid-svg-icons';
 import theme from './theme';
 import LogViewerPage from './pages/LogViewerPage/LogViewerPage';
 import DatasetViewerPage from './pages/DatasetViewerPage/DatasetViewerPage';
+import EvaluationInspectorPage from './pages/EvaluationInspectorPage/EvaluationInspectorPage';
 
 function App() {
-    const [currentTab, setCurrentTab] = useState('dataset');
+    const [currentTab, setCurrentTab] = useState('evaluations');
 
     return (
         <ThemeProvider theme={theme}>
@@ -53,11 +54,11 @@ function App() {
                         }}
                     >
                         <Tab
-                            value="dataset"
-                            label="Dataset Viewer"
+                            value="evaluations"
+                            label="Evaluation Inspector"
                             icon={
                                 <FontAwesomeIcon
-                                    icon={faDatabase}
+                                    icon={faScaleBalanced}
                                     style={{ fontSize: '0.85rem' }}
                                 />
                             }
@@ -74,15 +75,24 @@ function App() {
                             }
                             iconPosition="start"
                         />
+                        <Tab
+                            value="dataset"
+                            label="Dataset Viewer"
+                            icon={
+                                <FontAwesomeIcon
+                                    icon={faDatabase}
+                                    style={{ fontSize: '0.85rem' }}
+                                />
+                            }
+                            iconPosition="start"
+                        />
                     </Tabs>
                 </Stack>
             </Box>
 
-            {currentTab === 'dataset' ? (
-                <DatasetViewerPage />
-            ) : (
-                <LogViewerPage />
-            )}
+            {currentTab === 'evaluations' && <EvaluationInspectorPage />}
+            {currentTab === 'logs' && <LogViewerPage />}
+            {currentTab === 'dataset' && <DatasetViewerPage />}
         </ThemeProvider>
     );
 }

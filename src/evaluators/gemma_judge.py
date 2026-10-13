@@ -222,21 +222,22 @@ class GemmaJudgeEvaluator(BaseEvaluator):
             llm = self._get_llm()
 
             user_message_content = format_judge_prompt(user_prompt=user_prompt, response_text=text)
+            effective_user_prompt = f"{JUDGE_SYSTEM_PROMPT.strip()}\n\n{user_message_content}"
             messages = [
-                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
-                {"role": "user", "content": user_message_content},
+                {"role": "user", "content": effective_user_prompt},
             ]
 
             # Dynamic token budget clamp
             try:
-                actual_ctx = llm.n_ctx() if hasattr(llm, "n_ctx") and callable(llm.n_ctx) else self.n_ctx
+                ctx_val = llm.n_ctx() if hasattr(llm, "n_ctx") and callable(llm.n_ctx) else self.n_ctx
+                actual_ctx = ctx_val if isinstance(ctx_val, int) else self.n_ctx
             except Exception:
                 actual_ctx = self.n_ctx
 
-            prompt_text = JUDGE_SYSTEM_PROMPT + "\n" + user_message_content
+            prompt_text = effective_user_prompt
             try:
                 raw_tokens = llm.tokenize(prompt_text.encode("utf-8", errors="ignore"))
-                est_prompt_tokens = len(raw_tokens) + 64
+                est_prompt_tokens = len(raw_tokens) + 64 if isinstance(raw_tokens, (list, bytes, tuple)) else (len(prompt_text) // 3) + 64
             except Exception:
                 est_prompt_tokens = (len(prompt_text) // 3) + 64
 

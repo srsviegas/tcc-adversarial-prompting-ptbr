@@ -188,8 +188,8 @@ def run_evaluation(
 
     checkpoint_count = len(completed_cache)
 
-    # Clean write any valid checkpoint lines (recovers from partial line writes)
-    if not force_reevaluate and checkpoint_count > 0:
+    # Clean write any valid checkpoint lines (recovers from partial line writes and purges prior error lines)
+    if not force_reevaluate and output_path.exists():
         with open(output_path, "w", encoding="utf-8") as f:
             f.writelines(valid_existing_lines)
             f.flush()
