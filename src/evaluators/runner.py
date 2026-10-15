@@ -60,6 +60,7 @@ def run_evaluation(
     delay_sec: float = 0.0,
     ui: Optional[EvaluationUI] = None,
     output_dir: Optional[Union[str, Path]] = None,
+    max_consecutive_errors: Optional[int] = 3,
     **kwargs: Any,
 ) -> Path:
     """
@@ -357,19 +358,22 @@ def run_evaluation(
             )
             ui.update_progress(advance=1)
 
-            # Fail-fast if multiple consecutive API errors occur (e.g. 429 quota / unfunded account)
-            if consecutive_errors >= 3:
-                last_err = eval_result.get("error_message", "Unknown API error")
+            # Fail-fast if multiple consecutive errors occur (e.g. 429 quota, model crashes, auth errors)
+            if max_consecutive_errors is not None and max_consecutive_errors > 0 and consecutive_errors >= max_consecutive_errors:
+                last_err = eval_result.get("error_message", "Unknown error")
                 ui.stop_live()
-                ui.log_error(f"Halting run: 3 consecutive API errors encountered.")
+                ui.log_error(f"Halting run: {consecutive_errors} consecutive errors encountered.")
                 ui.log_warning(f"Last error: {last_err}")
-                if "429" in last_err:
+                if "429" in str(last_err):
                     ui.log_warning("OpenAI returned '429 Too Many Requests'. This usually indicates:")
                     ui.log_warning("  1. Your OpenAI account balance is $0.00. Add prepaid credits ($5) at https://platform.openai.com/billing.")
                     ui.log_warning("  2. Your organization has reached its Requests-Per-Minute (RPM) limit.")
                     ui.log_warning("You can diagnose your key by running: python scripts/check_openai_moderation.py")
                 ui.log_info("All progress evaluated so far has been safely saved to the checkpoint.")
-                break
+                raise RuntimeError(
+                    f"Evaluation of '{resolved_input_path.name}' halted after {consecutive_errors} consecutive errors. "
+                    f"Last error: {last_err}"
+                )
 
             if delay_sec > 0:
                 time.sleep(delay_sec)

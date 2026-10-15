@@ -21,7 +21,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from src.evaluators import DEFAULT_QWEN_JUDGE_MODEL_PATH, run_evaluation
+from src.evaluators import (
+    DEFAULT_QWEN_JUDGE_MODEL_PATH,
+    resolve_qwen_judge_model_path,
+    run_evaluation,
+)
 
 console = Console()
 
@@ -172,6 +176,12 @@ def parse_args():
         help="Optional delay (in seconds) between evaluation requests.",
     )
     parser.add_argument(
+        "--max-consecutive-errors",
+        type=int,
+        default=3,
+        help="Maximum consecutive errors before aborting a file evaluation (default: 3).",
+    )
+    parser.add_argument(
         "--max-files",
         type=int,
         default=None,
@@ -207,10 +217,14 @@ def main():
         console.print(f"[yellow]No log files found in '{logs_dir}' matching pattern '{args.pattern}'.[/yellow]")
         sys.exit(0)
 
+    resolved_model_path = resolve_qwen_judge_model_path(args.model)
+    model_exists = os.path.isfile(resolved_model_path)
+
     console.print(
         Panel(
             f"[bold cyan]Batch Evaluator: Qwen 2.5 32B Abliterated Judge[/bold cyan]\n"
             f"Model                : {args.model}\n"
+            f"Resolved Model Path  : {resolved_model_path} ({'[green]Found[/green]' if model_exists else '[red]Not Found[/red]'})\n"
             f"Logs Directory       : {logs_dir.relative_to(project_root)}\n"
             f"Target Sidecar Folder: {evaluations_dir.relative_to(project_root)}\n"
             f"Matched Files        : {len(all_files)}\n"
@@ -219,6 +233,19 @@ def main():
             expand=False,
         )
     )
+
+    if not model_exists and not args.dry_run:
+        console.print(
+            Panel(
+                f"[bold red]Error: Qwen Judge model file not found![/bold red]\n\n"
+                f"Resolved path: [bold cyan]{resolved_model_path}[/bold cyan]\n\n"
+                f"Please download the GGUF model using the command in models/README.md:\n"
+                f"  py -m huggingface_hub.cli.hf download bartowski/Qwen2.5-Coder-32B-Instruct-abliterated-GGUF Qwen2.5-Coder-32B-Instruct-abliterated-Q4_K_M.gguf --local-dir ./models\n\n"
+                f"Or specify an existing custom GGUF model path via: --model <path_to_gguf>",
+                border_style="red",
+            )
+        )
+        sys.exit(1)
 
     statuses: List[Dict[str, Any]] = []
     with console.status("[bold blue]Scanning files and sidecar checkpoints...[/bold blue]"):
@@ -306,12 +333,17 @@ def main():
                 n_gpu_layers=args.n_gpu_layers,
                 temperature=args.temperature,
                 max_tokens=args.max_tokens,
+                max_consecutive_errors=args.max_consecutive_errors,
             )
         except KeyboardInterrupt:
             console.print("\n[bold yellow]Evaluation interrupted by user. Stopping batch cleanly...[/bold yellow]")
             break
         except Exception as e:
+            err_str = str(e)
             console.print(f"[bold red]Failed evaluating {src.name}: {e}[/bold red]")
+            if any(k in err_str.lower() for k in ("not found", "cuda out of memory", "fatal")):
+                console.print(f"[bold red]Halting batch: Fatal model/environment error detected.[/bold red]")
+                break
             continue
 
     console.print(Panel("[bold green]Batch Qwen Judge evaluation session finished![/bold green]", expand=False))

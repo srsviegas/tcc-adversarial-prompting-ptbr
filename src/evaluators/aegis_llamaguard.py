@@ -226,7 +226,17 @@ class AegisLlamaGuardEvaluator(BaseEvaluator):
 
         start_time = time.time()
         try:
-            self._load_model()
+            try:
+                self._load_model()
+            except (ImportError, FileNotFoundError) as fatal_err:
+                raise fatal_err
+            except Exception as err:
+                err_msg = str(err).lower()
+                if any(k in err_msg for k in ("401", "403", "gated", "restricted", "unauthorized")):
+                    raise RuntimeError(
+                        f"Authentication/access error loading Aegis LlamaGuard ({self.model_id}): {err}"
+                    ) from err
+                raise err
             prompt = format_aegis_prompt(text)
 
             if self._is_gguf:

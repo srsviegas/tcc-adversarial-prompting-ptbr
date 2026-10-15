@@ -21,7 +21,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from src.evaluators import run_evaluation
+from src.evaluators import (
+    DEFAULT_AEGIS_ADAPTER_ID,
+    DEFAULT_AEGIS_BASE_MODEL,
+    run_evaluation,
+)
 
 console = Console()
 
@@ -117,6 +121,35 @@ def parse_args():
         description="Batch LlamaGuard evaluator: scans logs/ and evaluates pending rows into evaluations/llamaguard/."
     )
     parser.add_argument(
+        "--model",
+        type=str,
+        default=DEFAULT_AEGIS_ADAPTER_ID,
+        help=f"Aegis adapter model ID, local folder, or .gguf file (default: {DEFAULT_AEGIS_ADAPTER_ID}).",
+    )
+    parser.add_argument(
+        "--base-model",
+        type=str,
+        default=DEFAULT_AEGIS_BASE_MODEL,
+        help=f"Base model ID for PEFT adapter (default: {DEFAULT_AEGIS_BASE_MODEL}).",
+    )
+    parser.add_argument(
+        "--hf-token",
+        type=str,
+        default=None,
+        help="Hugging Face access token (defaults to HF_TOKEN or HUGGING_FACE_HUB_TOKEN environment variable).",
+    )
+    parser.add_argument(
+        "--load-in-4bit",
+        action="store_true",
+        help="Load in 4-bit quantization using bitsandbytes to save VRAM.",
+    )
+    parser.add_argument(
+        "--max-consecutive-errors",
+        type=int,
+        default=3,
+        help="Maximum consecutive errors before aborting a file evaluation (default: 3).",
+    )
+    parser.add_argument(
         "--dir",
         "--logs-dir",
         dest="logs_dir",
@@ -177,17 +210,43 @@ def main():
         console.print(f"[yellow]No log files found in '{logs_dir}' matching pattern '{args.pattern}'.[/yellow]")
         sys.exit(0)
 
+    hf_token = args.hf_token or os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
+
     console.print(
         Panel(
             f"[bold cyan]Batch Evaluator: LlamaGuard[/bold cyan]\n"
             f"Logs Directory       : {logs_dir.relative_to(project_root)}\n"
             f"Target Sidecar Folder: {evaluations_dir.relative_to(project_root)}\n"
+            f"Adapter Model        : {args.model}\n"
+            f"Base Model           : {args.base_model}\n"
+            f"Load in 4-bit        : {args.load_in_4bit}\n"
             f"Matched Files        : {len(all_files)}\n"
             f"Force Re-evaluate    : {args.force}\n"
             f"Dry Run Mode         : {args.dry_run}",
             expand=False,
         )
     )
+
+    is_gguf = args.model.endswith(".gguf") or (os.path.isfile(args.model) and "gguf" in args.model.lower())
+    if not is_gguf and not hf_token and not args.dry_run:
+        try:
+            from huggingface_hub import try_to_load_from_cache
+            cached_config = try_to_load_from_cache(args.base_model, "config.json")
+            if not cached_config:
+                console.print(
+                    Panel(
+                        f"[bold yellow]Warning: HF_TOKEN is not set and '{args.base_model}' is not cached locally.[/bold yellow]\n\n"
+                        f"Aegis LlamaGuard uses the gated base model [bold cyan]{args.base_model}[/bold cyan].\n"
+                        f"Without an authenticated Hugging Face token, evaluation will fail with 401 Client Error.\n\n"
+                        f"To fix this, either:\n"
+                        f"  1. Set HF_TOKEN in your .env file or environment (export HF_TOKEN=\"...\")\n"
+                        f"  2. Pass --hf-token YOUR_TOKEN\n"
+                        f"  3. Use a local GGUF model: --model path/to/model.gguf",
+                        border_style="yellow",
+                    )
+                )
+        except Exception:
+            pass
 
     statuses: List[Dict[str, Any]] = []
     with console.status("[bold blue]Scanning files and sidecar checkpoints...[/bold blue]"):
@@ -268,14 +327,23 @@ def main():
             run_evaluation(
                 log_file=str(src),
                 evaluator_name="aegis_llamaguard",
+                model=args.model,
+                base_model_id=args.base_model,
+                hf_token=hf_token,
+                load_in_4bit=args.load_in_4bit,
                 force_reevaluate=args.force,
                 delay_sec=args.delay,
+                max_consecutive_errors=args.max_consecutive_errors,
             )
         except KeyboardInterrupt:
             console.print("\n[bold yellow]Evaluation interrupted by user. Stopping batch cleanly...[/bold yellow]")
             break
         except Exception as e:
+            err_str = str(e)
             console.print(f"[bold red]Failed evaluating {src.name}: {e}[/bold red]")
+            if any(k in err_str.lower() for k in ("401", "403", "gated repo", "unauthorized", "cuda out of memory")):
+                console.print(f"[bold red]Halting batch: Fatal model/environment error detected.[/bold red]")
+                break
             continue
 
     console.print(Panel("[bold green]Batch LlamaGuard evaluation session finished![/bold green]", expand=False))

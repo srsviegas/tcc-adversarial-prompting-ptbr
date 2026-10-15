@@ -22,7 +22,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from src.evaluators import EvaluatorRegistry, run_evaluation
+from src.evaluators import (
+    EvaluatorRegistry,
+    get_canonical_evaluator_folder,
+    run_evaluation,
+)
 
 console = Console()
 
@@ -82,6 +86,29 @@ def parse_args():
         help="Max output tokens for the structured judge evaluation (default: 1024).",
     )
     parser.add_argument(
+        "--base-model",
+        type=str,
+        default=None,
+        help="Base model ID for adapter-based evaluators (e.g. meta-llama/LlamaGuard-7b).",
+    )
+    parser.add_argument(
+        "--hf-token",
+        type=str,
+        default=None,
+        help="Hugging Face access token for gated models (defaults to HF_TOKEN env var).",
+    )
+    parser.add_argument(
+        "--load-in-4bit",
+        action="store_true",
+        help="Load local model in 4-bit quantization using bitsandbytes.",
+    )
+    parser.add_argument(
+        "--max-consecutive-errors",
+        type=int,
+        default=3,
+        help="Maximum consecutive errors before aborting a file evaluation (default: 3).",
+    )
+    parser.add_argument(
         "--api-key",
         type=str,
         default=None,
@@ -122,6 +149,11 @@ def get_file_evaluation_status(
     total rows, evaluated rows, and remaining pending rows.
     """
     output_path = evaluated_dir / source_path.name
+    # Fallback to legacy path if not present in evaluated_dir
+    if not output_path.exists():
+        legacy_path = source_path.parent / "evaluated" / source_path.name
+        if legacy_path.exists():
+            output_path = legacy_path
 
     total_source = 0
     try:
@@ -171,14 +203,19 @@ def get_file_evaluation_status(
                     continue
                 try:
                     rec = json.loads(line_str)
-                    evals = rec.get("evaluations", [])
-                    has_eval = any(
-                        ev.get("evaluator") == evaluator_name
-                        and ev.get("status") in ("success", "skipped")
-                        for ev in evals
-                    )
-                    if has_eval:
+                    # Check 1: Sidecar format
+                    if rec.get("status") in ("success", "skipped"):
                         evaluated_count += 1
+                    # Check 2: Legacy full log format
+                    elif "evaluations" in rec:
+                        evals = rec.get("evaluations", [])
+                        has_eval = any(
+                            (ev.get("evaluator") == evaluator_name or evaluator_name in str(ev.get("evaluator", "")).lower())
+                            and ev.get("status") in ("success", "skipped")
+                            for ev in evals
+                        )
+                        if has_eval:
+                            evaluated_count += 1
                 except json.JSONDecodeError:
                     continue
     except Exception as e:
@@ -212,9 +249,6 @@ def main():
         console.print(f"[bold red][ERROR][/bold red] Logs directory not found: {logs_dir}")
         sys.exit(1)
 
-    evaluated_dir = logs_dir / "evaluated"
-    evaluated_dir.mkdir(parents=True, exist_ok=True)
-
     # Validate evaluator registration
     raw_eval_key = args.evaluator.lower()
     if raw_eval_key not in EvaluatorRegistry._EVALUATORS:
@@ -237,8 +271,14 @@ def main():
         "llm_judge": "qwen_judge",
         "llm-judge": "qwen_judge",
         "judge": "qwen_judge",
+        "gemma": "gemma_judge",
+        "gemma_judge": "gemma_judge",
     }
     canonical_evaluator_name = eval_canonical_map.get(raw_eval_key, raw_eval_key)
+    evaluator_folder = get_canonical_evaluator_folder(canonical_evaluator_name)
+
+    evaluated_dir = project_root / "evaluations" / evaluator_folder
+    evaluated_dir.mkdir(parents=True, exist_ok=True)
 
     # Scan for matching log files (exclude subdirectories like evaluated/, old/, etc.)
     all_files = sorted([
@@ -356,11 +396,19 @@ def main():
         "n_gpu_layers": args.n_gpu_layers,
         "temperature": args.temperature,
         "max_tokens": args.max_tokens,
+        "output_dir": evaluated_dir,
+        "max_consecutive_errors": args.max_consecutive_errors,
     }
     if args.model:
         eval_kwargs["model"] = args.model
     if args.api_key:
         eval_kwargs["api_key"] = args.api_key
+    if args.base_model:
+        eval_kwargs["base_model_id"] = args.base_model
+    if args.hf_token:
+        eval_kwargs["hf_token"] = args.hf_token
+    if args.load_in_4bit:
+        eval_kwargs["load_in_4bit"] = args.load_in_4bit
 
     try:
         for f_idx, st in enumerate(pending_files, start=1):
@@ -379,7 +427,11 @@ def main():
                 raise
             except Exception as e:
                 failed_files += 1
+                err_str = str(e)
                 console.print(f"[bold red]✖ Error evaluating {file_name}: {e}[/bold red]")
+                if any(k in err_str.lower() for k in ("401", "403", "gated repo", "unauthorized", "cuda out of memory")):
+                    console.print(f"[bold red]Halting batch: Fatal model/environment error detected.[/bold red]")
+                    break
 
     except KeyboardInterrupt:
         console.print("\n[bold yellow]⚠ Evaluation interrupted by user. Progress saved in checkpoint logs.[/bold yellow]")

@@ -27,7 +27,7 @@ from src.evaluators.gemma_judge import (
     resolve_gemma_judge_model_path,
 )
 from src.evaluators.registry import EvaluatorRegistry
-from src.evaluators.runner import run_evaluation
+from src.evaluators.runner import get_canonical_evaluator_folder, run_evaluation
 from src.evaluators.sidecar import (
     compute_cohen_kappa,
     compute_row_consensus,
@@ -62,6 +62,7 @@ __all__ = [
     "format_aegis_prompt",
     "format_judge_prompt",
     "generate_record_key",
+    "get_canonical_evaluator_folder",
     "parse_aegis_output",
     "resolve_gemma_judge_model_path",
     "resolve_qwen_judge_model_path",
