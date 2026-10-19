@@ -438,8 +438,8 @@ def main():
                 failed_files += 1
                 err_str = str(e)
                 console.print(f"[bold red]✖ Error evaluating {file_name}: {e}[/bold red]")
-                if any(k in err_str.lower() for k in ("401", "403", "gated repo", "unauthorized", "cuda out of memory")):
-                    console.print(f"[bold red]Halting batch: Fatal model/environment error detected.[/bold red]")
+                if any(k in err_str.lower() for k in ("401", "403", "gated repo", "unauthorized")):
+                    console.print(f"[bold red]Halting batch: Fatal model access/authentication error detected.[/bold red]")
                     break
 
     except KeyboardInterrupt:

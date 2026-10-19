@@ -339,20 +339,30 @@ def run_evaluation(
                 last_err = str(eval_result.get("error_message", ""))
                 err_lower = last_err.lower()
                 fatal_keywords = (
-                    "cuda out of memory",
-                    "out of memory",
-                    "cuda error",
                     "device-side assert",
                     "gpu assert",
                     "segmentation fault",
                     "model file not found",
+                )
+                oom_keywords = (
+                    "cuda out of memory",
+                    "out of memory",
                     "cannot allocate memory",
                 )
                 if any(k in err_lower for k in fatal_keywords):
                     ui.stop_live()
                     ui.log_error(f"Fatal GPU/environment error encountered on row #{idx}: {last_err}")
                     raise RuntimeError(f"Fatal GPU/environment error: {last_err}")
-                ui.log_warning(f"Row #{record.get('dataset_metadata', {}).get('original_row_index', idx)} error: {last_err}")
+                elif any(k in err_lower for k in oom_keywords):
+                    try:
+                        import torch
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    except Exception:
+                        pass
+                    ui.log_warning(f"Row #{record.get('dataset_metadata', {}).get('original_row_index', idx)} GPU OOM: {last_err}")
+                else:
+                    ui.log_warning(f"Row #{record.get('dataset_metadata', {}).get('original_row_index', idx)} error: {last_err}")
             elif flagged:
                 consecutive_errors = 0
                 flagged_count += 1

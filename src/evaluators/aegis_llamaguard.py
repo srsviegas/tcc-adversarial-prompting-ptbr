@@ -237,6 +237,29 @@ class AegisLlamaGuardEvaluator(BaseEvaluator):
                         f"Authentication/access error loading Aegis LlamaGuard ({self.model_id}): {err}"
                     ) from err
                 raise err
+            # Truncate response_text if needed to protect against context overflow & GPU OOM.
+            # LlamaGuard-7b native context is 4096. Prompt template overhead is ~350 tokens, max_new_tokens is 50.
+            # Leaving safe budget of 3500 tokens for the response text.
+            if not self._is_gguf and self._tokenizer is not None and hasattr(self._tokenizer, "encode"):
+                try:
+                    text_tokens = self._tokenizer.encode(text, add_special_tokens=False)
+                    if isinstance(text_tokens, list) and len(text_tokens) > 3500:
+                        text = self._tokenizer.decode(text_tokens[:3500], skip_special_tokens=True)
+                except Exception:
+                    pass
+            elif self._is_gguf and hasattr(self._model, "tokenize"):
+                try:
+                    raw_bytes = text.encode("utf-8")
+                    text_tokens = self._model.tokenize(raw_bytes, add_bos=False)
+                    if isinstance(text_tokens, list) and len(text_tokens) > 3500:
+                        truncated_bytes = self._model.detokenize(text_tokens[:3500])
+                        text = truncated_bytes.decode("utf-8", errors="ignore")
+                except Exception:
+                    pass
+
+            if len(text) > 20000:
+                text = text[:20000]
+
             prompt = format_aegis_prompt(text)
 
             if self._is_gguf:
@@ -252,7 +275,12 @@ class AegisLlamaGuardEvaluator(BaseEvaluator):
             else:
                 # Inference with Hugging Face PyTorch
                 import torch
-                inputs = self._tokenizer(prompt, return_tensors="pt")
+                inputs = self._tokenizer(
+                    prompt,
+                    return_tensors="pt",
+                    max_length=4040,
+                    truncation=True,
+                )
                 if torch.cuda.is_available():
                     inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
 
@@ -296,6 +324,12 @@ class AegisLlamaGuardEvaluator(BaseEvaluator):
             }
 
         except Exception as exc:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
             latency = time.time() - start_time
             return {
                 "evaluator": self.name,
