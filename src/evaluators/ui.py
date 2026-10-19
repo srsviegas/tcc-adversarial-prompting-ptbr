@@ -175,6 +175,7 @@ class EvaluationUI:
         highest_category: Optional[str],
         highest_score: float,
         latency_sec: Optional[float] = None,
+        error_message: Optional[str] = None,
     ):
         """Appends to the rolling history window and refreshes display."""
         timestamp = time.strftime("%H:%M:%S")
@@ -185,7 +186,11 @@ class EvaluationUI:
             score_str = ""
         elif status == "error":
             status_tag = "[bold yellow] ERROR [/bold yellow]"
-            cat_str = "[yellow]API Error[/yellow]"
+            if error_message:
+                clean_err = str(error_message).replace("\n", " ").strip()
+                cat_str = f"[yellow]{clean_err[:45]}[/yellow]"
+            else:
+                cat_str = "[yellow]Eval Error[/yellow]"
             score_str = ""
         elif flagged:
             status_tag = "[bold red]FLAGGED[/bold red]"
@@ -224,6 +229,7 @@ class EvaluationUI:
 
     def log_error(self, message: str):
         """Prints an error message."""
+        import sys
         timestamp = time.strftime("%H:%M:%S")
         msg = f"[dim #666666]{timestamp}[/dim #666666] [red]ERROR[/red] [dim #aaaaaa]{message}[/dim #aaaaaa]"
         with self._lock:
@@ -231,9 +237,14 @@ class EvaluationUI:
                 self.live.console.print(msg)
             else:
                 self.console.print(msg)
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
 
     def log_warning(self, message: str):
         """Prints a warning message."""
+        import sys
         timestamp = time.strftime("%H:%M:%S")
         msg = f"[dim #666666]{timestamp}[/dim #666666] [dim #cc9900]WARN[/dim #cc9900]  [dim #aaaaaa]{message}[/dim #aaaaaa]"
         with self._lock:
@@ -241,9 +252,14 @@ class EvaluationUI:
                 self.live.console.print(msg)
             else:
                 self.console.print(msg)
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
 
     def log_info(self, message: str):
         """Prints an informational message."""
+        import sys
         timestamp = time.strftime("%H:%M:%S")
         msg = f"[dim #666666]{timestamp}[/dim #666666] [dim #00aaff]INFO[/dim #00aaff]  [dim #aaaaaa]{message}[/dim #aaaaaa]"
         with self._lock:
@@ -251,6 +267,10 @@ class EvaluationUI:
                 self.live.console.print(msg)
             else:
                 self.console.print(msg)
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
 
     def show_summary(
         self,
@@ -287,7 +307,7 @@ class EvaluationUI:
         if skipped_count > 0:
             grid.add_row("Skipped (Empty):", f"[dim]{skipped_count:,}[/dim]")
         if error_count > 0:
-            grid.add_row("API Errors:", f"[yellow]{error_count:,}[/yellow]")
+            grid.add_row("Errors:", f"[yellow]{error_count:,}[/yellow]")
 
         if category_breakdown:
             top_cats = sorted(category_breakdown.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -299,7 +319,7 @@ class EvaluationUI:
 
         panel = Panel(
             grid,
-            title="[bold #cccccc]OpenAI Moderation Evaluation Summary[/bold #cccccc]",
+            title="[bold #cccccc]Evaluation Summary[/bold #cccccc]",
             title_align="left",
             border_style="dim #666666",
             padding=(1, 2),

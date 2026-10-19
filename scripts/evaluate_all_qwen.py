@@ -165,6 +165,12 @@ def parse_args():
         help="Glob pattern to match log files in the directory (default: '*.jsonl').",
     )
     parser.add_argument(
+        "--recursive",
+        "-r",
+        action="store_true",
+        help="Recursively scan subdirectories in logs directory for matching log files.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Force re-evaluation of all rows even if already evaluated in the sidecar checkpoint.",
@@ -178,8 +184,8 @@ def parse_args():
     parser.add_argument(
         "--max-consecutive-errors",
         type=int,
-        default=3,
-        help="Maximum consecutive errors before aborting a file evaluation (default: 3).",
+        default=10,
+        help="Maximum consecutive errors before aborting a file evaluation (default: 0 = disabled).",
     )
     parser.add_argument(
         "--max-files",
@@ -208,9 +214,11 @@ def main():
     evaluations_dir = project_root / "evaluations" / "qwen_judge"
     evaluations_dir.mkdir(parents=True, exist_ok=True)
 
+    search_func = logs_dir.rglob if args.recursive else logs_dir.glob
     all_files = sorted([
-        f for f in logs_dir.glob(args.pattern)
+        f for f in search_func(args.pattern)
         if f.is_file() and not f.name.startswith("_test_")
+        and "evaluations" not in f.parts
     ])
 
     if not all_files:
@@ -227,7 +235,9 @@ def main():
             f"Resolved Model Path  : {resolved_model_path} ({'[green]Found[/green]' if model_exists else '[red]Not Found[/red]'})\n"
             f"Logs Directory       : {logs_dir.relative_to(project_root)}\n"
             f"Target Sidecar Folder: {evaluations_dir.relative_to(project_root)}\n"
+            f"Pattern / Recursive  : {args.pattern} (recursive={args.recursive})\n"
             f"Matched Files        : {len(all_files)}\n"
+            f"Max Consec Errors    : {args.max_consecutive_errors if args.max_consecutive_errors > 0 else 'Disabled (0)'}\n"
             f"Force Re-evaluate    : {args.force}\n"
             f"Dry Run Mode         : {args.dry_run}",
             expand=False,

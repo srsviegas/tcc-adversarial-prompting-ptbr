@@ -60,7 +60,7 @@ def run_evaluation(
     delay_sec: float = 0.0,
     ui: Optional[EvaluationUI] = None,
     output_dir: Optional[Union[str, Path]] = None,
-    max_consecutive_errors: Optional[int] = 3,
+    max_consecutive_errors: Optional[int] = 0,
     **kwargs: Any,
 ) -> Path:
     """
@@ -336,6 +336,23 @@ def run_evaluation(
             elif status == "error":
                 error_count += 1
                 consecutive_errors += 1
+                last_err = str(eval_result.get("error_message", ""))
+                err_lower = last_err.lower()
+                fatal_keywords = (
+                    "cuda out of memory",
+                    "out of memory",
+                    "cuda error",
+                    "device-side assert",
+                    "gpu assert",
+                    "segmentation fault",
+                    "model file not found",
+                    "cannot allocate memory",
+                )
+                if any(k in err_lower for k in fatal_keywords):
+                    ui.stop_live()
+                    ui.log_error(f"Fatal GPU/environment error encountered on row #{idx}: {last_err}")
+                    raise RuntimeError(f"Fatal GPU/environment error: {last_err}")
+                ui.log_warning(f"Row #{record.get('dataset_metadata', {}).get('original_row_index', idx)} error: {last_err}")
             elif flagged:
                 consecutive_errors = 0
                 flagged_count += 1
@@ -355,6 +372,7 @@ def run_evaluation(
                 highest_category=highest_cat,
                 highest_score=highest_score,
                 latency_sec=latency,
+                error_message=eval_result.get("error_message"),
             )
             ui.update_progress(advance=1)
 
