@@ -1,24 +1,88 @@
 {
-  "timestamp_utc": "2026-10-12T21:45:38Z",
-  "total_files": 38,
-  "total_rows_evaluated": 76166,
-  "rows_with_quorum_2plus_judges": 0,
-  "rows_pending_additional_judges": 76166,
-  "consensus_dangerous_total": 0,
-  "consensus_safe_total": 0,
-  "consensus_asr_percentage": 0.0,
+  "timestamp_utc": "2026-10-27T14:10:35Z",
+  "total_files": 68,
+  "total_rows_evaluated": 121052,
+  "rows_with_quorum_2plus_judges": 87421,
+  "rows_pending_additional_judges": 33631,
+  "consensus_dangerous_total": 16311,
+  "consensus_safe_total": 71110,
+  "consensus_asr_percentage": 18.66,
+  "by_language": {
+    "pt-BR": {
+      "quorum_rows": 46573,
+      "consensus_dangerous": 8984,
+      "consensus_safe": 37589,
+      "consensus_asr_percentage": 19.29,
+      "evaluators": {
+        "llamaguard": {
+          "flagged_dangerous": 22894,
+          "total_evaluated": 63708,
+          "asr_percentage": 35.94
+        },
+        "qwen_judge": {
+          "flagged_dangerous": 7410,
+          "total_evaluated": 46438,
+          "asr_percentage": 15.96
+        },
+        "gemma_judge": {
+          "flagged_dangerous": 9312,
+          "total_evaluated": 31227,
+          "asr_percentage": 29.82
+        },
+        "openai_moderation": {
+          "flagged_dangerous": 0,
+          "total_evaluated": 0,
+          "asr_percentage": 0.0
+        }
+      }
+    },
+    "en": {
+      "quorum_rows": 40848,
+      "consensus_dangerous": 7327,
+      "consensus_safe": 33521,
+      "consensus_asr_percentage": 17.94,
+      "evaluators": {
+        "llamaguard": {
+          "flagged_dangerous": 18868,
+          "total_evaluated": 56608,
+          "asr_percentage": 33.33
+        },
+        "qwen_judge": {
+          "flagged_dangerous": 6081,
+          "total_evaluated": 40713,
+          "asr_percentage": 14.94
+        },
+        "gemma_judge": {
+          "flagged_dangerous": 7284,
+          "total_evaluated": 26880,
+          "asr_percentage": 27.1
+        },
+        "openai_moderation": {
+          "flagged_dangerous": 0,
+          "total_evaluated": 0,
+          "asr_percentage": 0.0
+        }
+      }
+    },
+    "cross_lingual_gap_pt_minus_en": 1.35
+  },
   "evaluators": {
     "llamaguard": {
-      "flagged_dangerous": 17264,
-      "total_evaluated": 52555,
-      "asr_percentage": 32.85
+      "flagged_dangerous": 41762,
+      "total_evaluated": 120316,
+      "asr_percentage": 34.71
     },
     "qwen_judge": {
-      "flagged_dangerous": 1439,
-      "total_evaluated": 22609,
-      "asr_percentage": 6.36
+      "flagged_dangerous": 13491,
+      "total_evaluated": 87151,
+      "asr_percentage": 15.48
     },
     "gemma_judge": {
+      "flagged_dangerous": 16596,
+      "total_evaluated": 58107,
+      "asr_percentage": 28.56
+    },
+    "openai_moderation": {
       "flagged_dangerous": 0,
       "total_evaluated": 0,
       "asr_percentage": 0.0
@@ -26,16 +90,34 @@
   },
   "inter_evaluator_agreement": {
     "llamaguard vs qwen_judge": {
-      "overlap": 0,
-      "agreement": null,
-      "kappa": null
+      "overlap": 87151,
+      "observed_agreement": 0.7666,
+      "cohen_kappa": 0.3866,
+      "interpretation": "Fair"
     },
     "llamaguard vs gemma_judge": {
+      "overlap": 58107,
+      "observed_agreement": 0.7484,
+      "cohen_kappa": 0.4334,
+      "interpretation": "Moderate"
+    },
+    "llamaguard vs openai_moderation": {
       "overlap": 0,
       "agreement": null,
       "kappa": null
     },
     "qwen_judge vs gemma_judge": {
+      "overlap": 57837,
+      "observed_agreement": 0.8357,
+      "cohen_kappa": 0.5514,
+      "interpretation": "Moderate"
+    },
+    "qwen_judge vs openai_moderation": {
+      "overlap": 0,
+      "agreement": null,
+      "kappa": null
+    },
+    "gemma_judge vs openai_moderation": {
       "overlap": 0,
       "agreement": null,
       "kappa": null

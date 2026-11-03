@@ -16,6 +16,8 @@ import {
   faScaleBalanced,
   faRotateRight,
   faFileLines,
+  faLanguage,
+  faTableCells,
 } from '@fortawesome/free-solid-svg-icons';
 
 export function InspectionWorkspaceSelector({
@@ -23,11 +25,15 @@ export function InspectionWorkspaceSelector({
   evaluationsDirHandle,
   availableFiles,
   selectedFile,
+  pageViewMode = 'matrix',
+  onTogglePageViewMode,
   onFileSelect,
   onSelectProjectRoot,
   onSelectLogsDir,
   onSelectEvaluationsDir,
   onRefresh,
+  onOpenCrossLingualSummary,
+  hasConsensusSummary,
   loading,
 }) {
   const isLogsReady = Boolean(logsDirHandle);
@@ -100,7 +106,7 @@ export function InspectionWorkspaceSelector({
             {isEvalReady ? 'Evaluations Folder ✓' : 'Select Evaluations...'}
           </Button>
 
-          {isLogsReady && (
+          {(isLogsReady || isEvalReady) && (
             <Tooltip title="Refresh file lists">
               <Button
                 variant="outlined"
@@ -109,6 +115,53 @@ export function InspectionWorkspaceSelector({
                 sx={{ minWidth: 40, px: 1.5 }}
               >
                 <FontAwesomeIcon icon={faRotateRight} />
+              </Button>
+            </Tooltip>
+          )}
+
+          {isEvalReady && onTogglePageViewMode && (
+            <Tooltip title="View the comprehensive [Method x Model] percentage and completion count matrix">
+              <Button
+                variant={pageViewMode === 'matrix' ? 'contained' : 'outlined'}
+                onClick={() => onTogglePageViewMode(pageViewMode === 'matrix' ? 'inspector' : 'matrix')}
+                disabled={loading}
+                startIcon={<FontAwesomeIcon icon={faTableCells} />}
+                sx={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  bgcolor: pageViewMode === 'matrix' ? '#2563eb' : '#ffffff',
+                  color: pageViewMode === 'matrix' ? '#ffffff' : '#2563eb',
+                  borderColor: '#2563eb',
+                  '&:hover': {
+                    bgcolor: pageViewMode === 'matrix' ? '#1d4ed8' : '#eff6ff',
+                  },
+                }}
+              >
+                Matrix Overview ({availableFiles.length})
+              </Button>
+            </Tooltip>
+          )}
+
+          {isEvalReady && onOpenCrossLingualSummary && (
+            <Tooltip title="View full cross-lingual benchmark comparison (pt-BR vs English) and agreement metrics">
+              <Button
+                variant="outlined"
+                onClick={onOpenCrossLingualSummary}
+                disabled={loading}
+                startIcon={<FontAwesomeIcon icon={faLanguage} />}
+                sx={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  borderColor: '#8b5cf6',
+                  color: '#6d28d9',
+                  bgcolor: '#f5f3ff',
+                  '&:hover': {
+                    bgcolor: '#ede9fe',
+                    borderColor: '#7c3aed',
+                  },
+                }}
+              >
+                Cross-Lingual ASR (pt-BR vs EN)
               </Button>
             </Tooltip>
           )}

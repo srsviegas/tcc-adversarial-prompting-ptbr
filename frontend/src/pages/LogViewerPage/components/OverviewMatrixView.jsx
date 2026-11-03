@@ -659,7 +659,7 @@ export function OverviewMatrixView({
                                 />
                             </Stack>
                             <Typography variant="body2" color="text.secondary" fontSize="0.8rem" mt={0.25}>
-                                Content safety evaluations read from <code style={{ color: '#6d28d9', fontSize: '0.75rem' }}>logs/evaluated/</code>. Shows Overall ASR and variant breakdowns (Plain vs Attack in EN and PT-BR). Click any cell for deep-dive.
+                                Content safety evaluations read from <code style={{ color: '#6d28d9', fontSize: '0.75rem' }}>logs/evaluated/</code>. For multi-judge sidecars and consensus voting completion counts, open the <strong>Evaluation Inspector</strong> tab.
                             </Typography>
                         </Box>
                         {loadingEvaluated && (
@@ -845,8 +845,8 @@ export function OverviewMatrixView({
                                                         },
                                                     }}
                                                 >
-                                                    {/* Overall ASR Badge */}
-                                                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+                                                    {/* Overall ASR Badge & Completion Count */}
+                                                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={0.75}>
                                                         <Typography variant="caption" color="text.secondary" fontWeight={600} fontSize="0.675rem">
                                                             ASR
                                                         </Typography>
@@ -863,6 +863,13 @@ export function OverviewMatrixView({
                                                             }}
                                                         />
                                                     </Stack>
+
+                                                    {/* Evaluated Completion Count */}
+                                                    {stats && (
+                                                        <Typography variant="caption" color="#0f172a" fontWeight={700} fontSize="0.7rem" mb={0.75} display="block">
+                                                            {stats.evaluatedCount.toLocaleString()} / {stats.totalRecords.toLocaleString()} ({Math.round((stats.evaluatedCount / (stats.totalRecords || 1)) * 100)}%)
+                                                        </Typography>
+                                                    )}
 
                                                     {/* 4-Variant Mini Grid */}
                                                     {stats?.categories ? (

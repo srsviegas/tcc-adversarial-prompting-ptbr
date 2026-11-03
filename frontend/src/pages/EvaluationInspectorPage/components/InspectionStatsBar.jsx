@@ -39,14 +39,19 @@ export function InspectionStatsBar({
 
   const {
     totalRows,
+    totalQuorumRows = totalRows,
     totalDangerousConsensus,
     totalSafeConsensus,
     totalSplitVotes,
     totalPendingQuorum,
+    langStats = {},
   } = stats;
 
-  const dangerousPct = totalRows > 0 ? ((totalDangerousConsensus / totalRows) * 100).toFixed(1) : '0';
-  const safePct = totalRows > 0 ? ((totalSafeConsensus / totalRows) * 100).toFixed(1) : '0';
+  const ptStats = langStats.pt || {};
+  const enStats = langStats.en || {};
+
+  const dangerousPct = totalQuorumRows > 0 ? ((totalDangerousConsensus / totalQuorumRows) * 100).toFixed(1) : '0';
+  const safePct = totalQuorumRows > 0 ? ((totalSafeConsensus / totalQuorumRows) * 100).toFixed(1) : '0';
 
   return (
     <Box
@@ -95,6 +100,78 @@ export function InspectionStatsBar({
               {totalDangerousConsensus} <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>({dangerousPct}%)</span>
             </Typography>
           </Box>
+
+          {/* pt-BR Metric */}
+          {ptStats.quorum > 0 && (
+            <Box
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                bgcolor: '#faf5ff',
+                borderRadius: 1.5,
+                border: '1px solid #e9d5ff',
+              }}
+            >
+              <Typography variant="caption" color="#7e22ce" fontWeight={700} display="block">
+                🇧🇷 PT-BR ASR
+              </Typography>
+              <Typography variant="subtitle2" fontWeight={800} color="#581c87">
+                {ptStats.dangerous}/{ptStats.quorum}{' '}
+                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>({ptStats.asr}%)</span>
+              </Typography>
+            </Box>
+          )}
+
+          {/* EN Metric */}
+          {enStats.quorum > 0 && (
+            <Box
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                bgcolor: '#f0fdfa',
+                borderRadius: 1.5,
+                border: '1px solid #99f6e4',
+              }}
+            >
+              <Typography variant="caption" color="#0f766e" fontWeight={700} display="block">
+                🇺🇸 EN ASR
+              </Typography>
+              <Typography variant="subtitle2" fontWeight={800} color="#115e59">
+                {enStats.dangerous}/{enStats.quorum}{' '}
+                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>({enStats.asr}%)</span>
+              </Typography>
+            </Box>
+          )}
+
+          {/* Cross-Lingual Gap Metric */}
+          {langStats.gap !== null && langStats.gap !== undefined && (
+            <Box
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                bgcolor: langStats.rawGap > 0 ? '#fff1f2' : '#f0fdf4',
+                borderRadius: 1.5,
+                border: '1px solid',
+                borderColor: langStats.rawGap > 0 ? '#fecdd3' : '#bbf7d0',
+              }}
+            >
+              <Typography
+                variant="caption"
+                color={langStats.rawGap > 0 ? '#e11d48' : '#16a34a'}
+                fontWeight={700}
+                display="block"
+              >
+                GAP (PT − EN)
+              </Typography>
+              <Typography
+                variant="subtitle2"
+                fontWeight={800}
+                color={langStats.rawGap > 0 ? '#9f1239' : '#166534'}
+              >
+                {langStats.gap}
+              </Typography>
+            </Box>
+          )}
 
           {/* Safe Metric */}
           <Box
@@ -299,8 +376,12 @@ export function InspectionStatsBar({
             }}
           >
             <ToggleButton value="all">Lang: All</ToggleButton>
-            <ToggleButton value="pt-BR">PT-BR</ToggleButton>
-            <ToggleButton value="en">EN</ToggleButton>
+            <ToggleButton value="pt-BR">
+              PT-BR {ptStats.asr !== null && ptStats.asr !== undefined ? `(${ptStats.asr}%)` : ''}
+            </ToggleButton>
+            <ToggleButton value="en">
+              EN {enStats.asr !== null && enStats.asr !== undefined ? `(${enStats.asr}%)` : ''}
+            </ToggleButton>
           </ToggleButtonGroup>
 
           {totalFilteredCount !== undefined && totalFilteredCount !== totalRows && (

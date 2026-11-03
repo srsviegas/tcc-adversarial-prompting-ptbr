@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { parseConsensusFileText } from '../pages/EvaluationInspectorPage/utils/evaluationMatrixUtils';
 
 /**
  * Hook to manage loading both the generation logs and the multi-evaluator sidecars.
@@ -18,6 +19,10 @@ export function useEvaluationWorkspace() {
 
   const [availableFiles, setAvailableFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState('');
+  const [consensusSummary, setConsensusSummary] = useState(null);
+  const [matrixStats, setMatrixStats] = useState({});
+  const [matrixLoading, setMatrixLoading] = useState(false);
+  const [matrixProgress, setMatrixProgress] = useState({ loaded: 0, total: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -31,6 +36,15 @@ export function useEvaluationWorkspace() {
           files.add(entry.name);
         }
       }
+      // Also inspect subdirectories like 'evaluated' inside logs
+      try {
+        const evalSub = await dirHandle.getDirectoryHandle('evaluated', { create: false });
+        for await (const entry of evalSub.values()) {
+          if (entry.kind === 'file' && entry.name.endsWith('.jsonl')) {
+            files.add(entry.name);
+          }
+        }
+      } catch { /* subdirectory 'evaluated' not present or inaccessible */ }
     } catch {
       // Ignored if cannot iterate
     }
@@ -228,7 +242,15 @@ export function useEvaluationWorkspace() {
       const file = await fileHandle.getFile();
       return await file.text();
     } catch {
-      return null;
+      // Fallback: Check if file is stored under 'evaluated/' subfolder
+      try {
+        const evalSub = await dirHandle.getDirectoryHandle('evaluated', { create: false });
+        const fileHandle = await evalSub.getFileHandle(fileName, { create: false });
+        const file = await fileHandle.getFile();
+        return await file.text();
+      } catch {
+        return null;
+      }
     }
   };
 
@@ -320,6 +342,17 @@ export function useEvaluationWorkspace() {
       let totalSafeConsensus = 0;
       let totalSplitVotes = 0;
       let totalPendingQuorum = 0;
+
+      // Language tracking for the loaded file
+      let quorumPt = 0;
+      let dangerousPt = 0;
+      let safePt = 0;
+      let totalPt = 0;
+
+      let quorumEn = 0;
+      let dangerousEn = 0;
+      let safeEn = 0;
+      let totalEn = 0;
 
       for (let idx = 0; idx < primaryCount; idx++) {
         const logItem = logRecords[idx] || {};
@@ -452,6 +485,26 @@ export function useEvaluationWorkspace() {
 
         const isDisagreement = hasQuorum && votesDangerous > 0 && votesSafe > 0;
 
+        const normLang = String(lang || logItem.inputs?.prompt_language || candidateKey.split('::')[2] || 'pt-BR').toLowerCase().includes('pt')
+          ? 'pt-BR'
+          : 'en';
+
+        if (normLang === 'pt-BR') {
+          totalPt += 1;
+          if (hasQuorum) {
+            quorumPt += 1;
+            if (consensusDangerous === true) dangerousPt += 1;
+            if (consensusDangerous === false) safePt += 1;
+          }
+        } else {
+          totalEn += 1;
+          if (hasQuorum) {
+            quorumEn += 1;
+            if (consensusDangerous === true) dangerousEn += 1;
+            if (consensusDangerous === false) safeEn += 1;
+          }
+        }
+
         if (consensusDangerous === true) totalDangerousConsensus += 1;
         if (consensusDangerous === false) totalSafeConsensus += 1;
         if (isDisagreement) totalSplitVotes += 1;
@@ -475,7 +528,7 @@ export function useEvaluationWorkspace() {
             user_input_raw: logItem.inputs?.user_input_raw || logItem.inputs?.user_prompt || '',
             user_prompt: logItem.inputs?.user_prompt || logItem.dataset_metadata?.user_prompt || '',
             plain_prompt: logItem.inputs?.plain_prompt || '',
-            prompt_language: lang || 'pt-BR',
+            prompt_language: normLang,
             attack_style: style || 'plain',
             iteration: iter,
           },
@@ -501,13 +554,38 @@ export function useEvaluationWorkspace() {
         });
       }
 
+      const totalQuorum = quorumPt + quorumEn;
+      const ptAsrVal = quorumPt > 0 ? (dangerousPt / quorumPt) * 100 : 0;
+      const enAsrVal = quorumEn > 0 ? (dangerousEn / quorumEn) * 100 : 0;
+      const gapVal = (quorumPt > 0 && quorumEn > 0) ? (ptAsrVal - enAsrVal) : null;
+
       const fileStats = {
         fileName,
         totalRows: unifiedRows.length,
+        totalQuorumRows: totalQuorum,
         totalDangerousConsensus,
         totalSafeConsensus,
         totalSplitVotes,
         totalPendingQuorum,
+        consensusAsr: totalQuorum > 0 ? ((totalDangerousConsensus / totalQuorum) * 100).toFixed(1) : null,
+        langStats: {
+          pt: {
+            total: totalPt,
+            quorum: quorumPt,
+            dangerous: dangerousPt,
+            safe: safePt,
+            asr: quorumPt > 0 ? ptAsrVal.toFixed(1) : null,
+          },
+          en: {
+            total: totalEn,
+            quorum: quorumEn,
+            dangerous: dangerousEn,
+            safe: safeEn,
+            asr: quorumEn > 0 ? enAsrVal.toFixed(1) : null,
+          },
+          gap: gapVal !== null ? (gapVal >= 0 ? `+${gapVal.toFixed(1)}%` : `${gapVal.toFixed(1)}%`) : null,
+          rawGap: gapVal,
+        },
         hasLlama: llamaRecords.length > 0,
         hasQwen: qwenRecords.length > 0,
         hasGemma: gemmaRecords.length > 0,
@@ -529,6 +607,128 @@ export function useEvaluationWorkspace() {
     consensusDirHandle,
   ]);
 
+  // Action 5: Re-scan and refresh all directory handles currently held in state
+  const refreshDirectory = useCallback(async () => {
+    setLoading(true);
+    try {
+      await refreshFileList(
+        logsDirHandle,
+        evaluationsDirHandle,
+        llamaguardDirHandle,
+        qwenJudgeDirHandle,
+        gemmaJudgeDirHandle,
+        consensusDirHandle
+      );
+    } catch (err) {
+      setError(`Failed refreshing workspace: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    logsDirHandle,
+    evaluationsDirHandle,
+    llamaguardDirHandle,
+    qwenJudgeDirHandle,
+    gemmaJudgeDirHandle,
+    consensusDirHandle,
+    refreshFileList,
+  ]);
+
+  // Action 6: Read consensus_summary.json from consensus directory if available
+  const loadConsensusSummary = useCallback(async (consHandle = consensusDirHandle) => {
+    if (!consHandle) return null;
+    try {
+      const summaryText = await readFileText(consHandle, 'consensus_summary.json');
+      if (summaryText) {
+        const parsed = JSON.parse(summaryText);
+        setConsensusSummary(parsed);
+        return parsed;
+      }
+    } catch {
+      // Ignored if summary is not present or unparseable
+    }
+    return null;
+  }, [consensusDirHandle]);
+
+  // Action 7: Asynchronously load summary matrix statistics for all available files
+  const loadMatrixOverviewData = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh && Object.keys(matrixStats).length > 0) {
+      return matrixStats;
+    }
+    if (!consensusDirHandle && !evaluationsDirHandle && !logsDirHandle) {
+      return {};
+    }
+    if (availableFiles.length === 0) return {};
+
+    setMatrixLoading(true);
+    setMatrixProgress({ loaded: 0, total: availableFiles.length });
+
+    const newMatrixMap = {};
+    const BATCH_SIZE = 8;
+
+    for (let i = 0; i < availableFiles.length; i += BATCH_SIZE) {
+      const batch = availableFiles.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (fileInfo) => {
+          const fileName = fileInfo.name;
+          try {
+            // Read consensus file text
+            const consensusText = await readFileText(consensusDirHandle, fileName);
+            if (consensusText) {
+              const parsed = parseConsensusFileText(consensusText, fileName);
+              if (parsed) {
+                newMatrixMap[fileName] = parsed;
+              }
+            } else if (fileInfo.hasLog) {
+              // Fallback for file with log but no consensus
+              const logText = await readFileText(logsDirHandle, fileName);
+              const logRows = logText ? logText.split('\n').filter((l) => l.trim().length > 0).length : 0;
+              newMatrixMap[fileName] = {
+                fileName,
+                totalLogRows: logRows,
+                evaluatedRows: 0,
+                quorumRows: 0,
+                pendingRows: 0,
+                consensusDangerous: 0,
+                consensusSafe: 0,
+                consensusAsr: null,
+                completionRate: 0,
+                evaluatedRate: 0,
+                status: 'not_evaluated',
+                evaluators: {
+                  llamaguard: { total: 0, dangerous: 0, asr: null, present: false },
+                  qwen_judge: { total: 0, dangerous: 0, asr: null, present: false },
+                  gemma_judge: { total: 0, dangerous: 0, asr: null, present: false },
+                },
+                languages: {
+                  pt: { total: 0, quorum: 0, dangerous: 0, asr: null },
+                  en: { total: 0, quorum: 0, dangerous: 0, asr: null },
+                  gap: null,
+                },
+              };
+            }
+          } catch {
+            // Ignore individual file parsing error in matrix scan
+          }
+        })
+      );
+      setMatrixProgress({
+        loaded: Math.min(i + BATCH_SIZE, availableFiles.length),
+        total: availableFiles.length,
+      });
+    }
+
+    setMatrixStats(newMatrixMap);
+    setMatrixLoading(false);
+    return newMatrixMap;
+  }, [
+    matrixStats,
+    consensusDirHandle,
+    evaluationsDirHandle,
+    logsDirHandle,
+    availableFiles,
+  ]);
+
   return {
     projectRootHandle,
     logsDirHandle,
@@ -536,11 +736,18 @@ export function useEvaluationWorkspace() {
     availableFiles,
     selectedFile,
     setSelectedFile,
+    consensusSummary,
+    matrixStats,
+    matrixLoading,
+    matrixProgress,
     loading,
     error,
     selectProjectRoot,
     selectLogsDirectory,
     selectEvaluationsDirectory,
     loadEvaluationFile,
+    loadConsensusSummary,
+    loadMatrixOverviewData,
+    refreshDirectory,
   };
 }
