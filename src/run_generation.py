@@ -490,6 +490,247 @@ def run_benchmark(
     return [log_filepath_str]
 
 
+def _evaluate_probe_convergence(log_filepath: str, max_records: int = 20) -> tuple[int, int, float]:
+    """Reads up to `max_records` from a probe log and returns (total, failed, success_rate)."""
+    import json
+
+    total = 0
+    failed = 0
+    path = Path(log_filepath)
+    if not path.is_file():
+        return 0, 0, 0.0
+
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                rec = json.loads(stripped)
+            except json.JSONDecodeError:
+                continue
+            total += 1
+            if rec.get("error_log", {}).get("failed"):
+                failed += 1
+            if total >= max_records:
+                break
+
+    if total == 0:
+        return 0, 0, 0.0
+    success_rate = (total - failed) / total
+    return total, failed, success_rate
+
+
+def run_cipher_benchmark_with_probe(
+    dataset_path: str,
+    dataset_type: str = "toxicchat_cipher",
+    provider: str = "gemini",
+    model: str = "gemini-3.5-flash-lite",
+    iterations: int = 1,
+    temperature: float = 0.6,
+    top_p: float = 1.0,
+    max_output_tokens: int = 8192,
+    seed: Optional[int] = None,
+    sleep: float = 0.0,
+    api_key: Optional[Union[str, List[str]]] = None,
+    api_keys: Optional[Union[str, List[str]]] = None,
+    max_workers: Optional[int] = None,
+    filter_label: str = "malicious",
+    eval_aegis: bool = False,
+    max_rows: Optional[int] = None,
+    probe_rows: int = 10,
+    min_success_rate: float = 0.5,
+    skip_probe: bool = False,
+) -> List[str]:
+    """
+    Probes each cipher type with `probe_rows` dataset rows (~20 interactions: EN + PT-BR),
+    skips ciphers that fail to converge (success_rate < min_success_rate), and runs the
+    full benchmark only on the ciphers that converged.
+    """
+    if dataset_type in ("toxicchat_cipher", "toxicchat_obfuscation"):
+        cipher_types = [
+            "toxicchat_base64",
+            "toxicchat_rot13",
+            "toxicchat_hex",
+            "toxicchat_leetspeak",
+            "toxicchat_caesar",
+        ]
+    else:
+        cipher_types = [dataset_type]
+
+    if skip_probe:
+        all_logs: List[str] = []
+        for c_type in cipher_types:
+            logs = run_benchmark(
+                dataset_path=dataset_path,
+                dataset_type=c_type,
+                provider=provider,
+                model=model,
+                iterations=iterations,
+                temperature=temperature,
+                top_p=top_p,
+                max_output_tokens=max_output_tokens,
+                seed=seed,
+                sleep=sleep,
+                api_key=api_key,
+                api_keys=api_keys,
+                max_workers=max_workers,
+                filter_label=filter_label,
+                eval_aegis=eval_aegis,
+                max_rows=max_rows,
+            )
+            if logs:
+                all_logs.extend(logs)
+        return all_logs
+
+    effective_probe_rows = min(probe_rows, max_rows) if (max_rows is not None and max_rows > 0) else probe_rows
+    probe_max_records = effective_probe_rows * 2
+    converged_ciphers: List[str] = []
+    probe_summary: List[dict] = []
+
+    print(
+        f"\n[PROBE] Testing {len(cipher_types)} cipher(s) with {effective_probe_rows} rows "
+        f"(~{probe_max_records} interactions, min_success_rate={min_success_rate:.0%})..."
+    )
+
+    for c_type in cipher_types:
+        print(f"\n[PROBE] Running {c_type} ({effective_probe_rows} rows)...")
+        probe_logs = run_benchmark(
+            dataset_path=dataset_path,
+            dataset_type=c_type,
+            provider=provider,
+            model=model,
+            iterations=1,
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=max_output_tokens,
+            seed=seed,
+            sleep=sleep,
+            api_key=api_key,
+            api_keys=api_keys,
+            max_workers=max_workers,
+            filter_label=filter_label,
+            eval_aegis=False,
+            max_rows=effective_probe_rows,
+        )
+        log_path = probe_logs[0] if probe_logs else ""
+        total, failed, success_rate = _evaluate_probe_convergence(log_path, max_records=probe_max_records)
+        converged = total > 0 and success_rate >= min_success_rate
+        if converged:
+            converged_ciphers.append(c_type)
+        probe_summary.append({
+            "cipher": c_type,
+            "total": total,
+            "failed": failed,
+            "success_rate": success_rate,
+            "converged": converged,
+        })
+
+    print("\n=== Cipher Convergence Probe Summary ===")
+    for item in probe_summary:
+        status = "RUN" if item["converged"] else "SKIP"
+        succeeded = item["total"] - item["failed"]
+        print(
+            f"  [{status}] {item['cipher']:<20} | "
+            f"{succeeded}/{item['total']} succeeded ({item['success_rate']:.1%})"
+        )
+
+    if not converged_ciphers:
+        print("\n[WARN] No ciphers converged above the threshold. Nothing left to run.")
+        return []
+
+    all_logs = []
+    for c_type in converged_ciphers:
+        print(f"\n[FULL RUN] Executing converged cipher: {c_type}")
+        logs = run_benchmark(
+            dataset_path=dataset_path,
+            dataset_type=c_type,
+            provider=provider,
+            model=model,
+            iterations=iterations,
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=max_output_tokens,
+            seed=seed,
+            sleep=sleep,
+            api_key=api_key,
+            api_keys=api_keys,
+            max_workers=max_workers,
+            filter_label=filter_label,
+            eval_aegis=eval_aegis,
+            max_rows=max_rows,
+        )
+        if logs:
+            all_logs.extend(logs)
+
+    return all_logs
+
+
+EVALUATOR_MODELS = [
+    "aegis_llamaguard",
+    "qwen_judge",
+    "gemma_judge",
+]
+
+
+def evaluate_logs_with_all_judges(log_files: List[str]) -> None:
+    """Runs all 3 evaluation models on each generated log file in isolated subprocesses."""
+    import subprocess
+
+    if not log_files:
+        print("\n[INFO] No log files produced; skipping evaluation.")
+        return
+
+    evaluate_log_script = project_root / "scripts" / "evaluate_log.py"
+    for idx, evaluator in enumerate(EVALUATOR_MODELS, start=1):
+        for log_file in log_files:
+            print(f"\n=== [Eval {idx}/{len(EVALUATOR_MODELS)}] ({evaluator}): {log_file} ===")
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(evaluate_log_script),
+                    log_file,
+                    "--evaluator",
+                    evaluator,
+                ],
+                check=True,
+            )
+
+    print("\n=== All evaluations (aegis_llamaguard, qwen_judge, gemma_judge) completed! ===")
+
+
+def run_generation_subprocess_then_evaluate(script_path: str, extra_args: List[str]) -> None:
+    """
+    Runs `script_path` with `--generate-only` in a subprocess (so GPU VRAM is
+    completely released on exit), then runs all 3 evaluators on the produced logs.
+    """
+    import json
+    import subprocess
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
+        manifest_path = Path(tmp.name)
+
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                script_path,
+                *extra_args,
+                "--generate-only",
+                "--log-manifest",
+                str(manifest_path),
+            ],
+            check=True,
+        )
+        raw = manifest_path.read_text(encoding="utf-8").strip()
+        log_files = json.loads(raw) if raw else []
+    finally:
+        manifest_path.unlink(missing_ok=True)
+
+    evaluate_logs_with_all_judges(log_files)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Run LLM Prompt Injection Benchmarks")
     parser.add_argument("--dataset", type=str, required=True, help="Path to the parquet dataset (e.g., datasets/pap_pt_train.parquet)")

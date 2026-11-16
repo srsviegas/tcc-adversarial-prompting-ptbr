@@ -1,4 +1,5 @@
 import sys
+import json
 import argparse
 from pathlib import Path
 
@@ -6,7 +7,7 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
-from src.run_generation import run_benchmark
+from src.run_generation import run_cipher_benchmark_with_probe, run_generation_subprocess_then_evaluate
 
 CIPHER_CHOICES = {
     "base64": "toxicchat_base64",
@@ -109,11 +110,41 @@ Examples:
         default=None,
         help="Maximum number of dataset rows per type (default: all)"
     )
+    parser.add_argument(
+        "--probe-rows",
+        type=int,
+        default=10,
+        help="Number of dataset rows per cipher for the convergence probe (~2 interactions per row, default: 10 = 20 interactions)"
+    )
+    parser.add_argument(
+        "--min-success-rate",
+        type=float,
+        default=0.5,
+        help="Minimum decode success rate (0.0-1.0) required in the probe to run the full cipher (default: 0.5)"
+    )
+    parser.add_argument(
+        "--skip-probe",
+        action="store_true",
+        default=False,
+        help="Skip the convergence probe and run all selected ciphers directly"
+    )
+    parser.add_argument(
+        "--skip-eval",
+        action="store_true",
+        default=False,
+        help="Skip automatic evaluation after generation completes"
+    )
+    parser.add_argument("--generate-only", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--log-manifest", type=str, default=None, help=argparse.SUPPRESS)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    if not args.generate_only and not args.skip_eval:
+        run_generation_subprocess_then_evaluate(__file__, sys.argv[1:])
+        return
 
     dataset_path = project_root / "dataset" / "toxicchat_pt_dataset" / "toxicchat_pt_train.parquet"
     if not dataset_path.exists():
@@ -145,7 +176,7 @@ def main():
     test_info = f" | Test Mode: first {max_rows} rows per type" if max_rows else ""
     print(f"[*] Running ToxicChat Cipher Benchmark | Sub-technique: {final_cipher} | Filter: {final_filter}{test_info}")
 
-    run_benchmark(
+    log_files = run_cipher_benchmark_with_probe(
         dataset_path=str(dataset_path),
         dataset_type=final_cipher,
         provider="gemini",
@@ -159,7 +190,12 @@ def main():
         filter_label=final_filter,
         eval_aegis=args.eval_aegis,
         max_rows=max_rows,
+        probe_rows=args.probe_rows,
+        min_success_rate=args.min_success_rate,
+        skip_probe=args.skip_probe,
     )
+    if args.log_manifest:
+        Path(args.log_manifest).write_text(json.dumps(log_files), encoding="utf-8")
 
 
 if __name__ == "__main__":
