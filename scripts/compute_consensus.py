@@ -21,7 +21,11 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
-from src.evaluators.sidecar import compute_cohen_kappa, compute_row_consensus
+from src.evaluators.sidecar import (
+    compute_cohen_kappa,
+    compute_row_consensus,
+    generate_record_key,
+)
 
 console = Console(highlight=False)
 
@@ -82,10 +86,37 @@ def read_sidecar_file(file_path: Path) -> Dict[str, dict]:
     return records
 
 
+def read_empty_output_keys(log_path: Path) -> Set[str]:
+    """Reads a base log JSONL file and returns record_keys whose generated output is empty."""
+    empty_keys: Set[str] = set()
+    if not log_path.is_file():
+        return empty_keys
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        for idx, line in enumerate(f):
+            line_str = line.strip()
+            if not line_str:
+                continue
+            try:
+                data = json.loads(line_str)
+            except json.JSONDecodeError:
+                continue
+            out = data.get("output")
+            if isinstance(out, dict):
+                txt = out.get("extracted_text")
+            else:
+                txt = out
+            if txt is None or not str(txt).strip():
+                rkey = data.get("record_key") or generate_record_key(data, idx)
+                empty_keys.add(rkey)
+    return empty_keys
+
+
 def process_consensus_for_file(
     filename: str,
     evaluator_dirs: Dict[str, Path],
     consensus_dir: Path,
+    logs_dir: Optional[Path] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Computes consensus across all available evaluator sidecars for a given log filename.
@@ -105,6 +136,14 @@ def process_consensus_for_file(
                 if k not in seen_keys:
                     seen_keys.add(k)
                     ordered_keys.append(k)
+
+    empty_output_keys: Set[str] = (
+        read_empty_output_keys(logs_dir / filename) if logs_dir else set()
+    )
+    for k in sorted(empty_output_keys):
+        if k not in seen_keys:
+            seen_keys.add(k)
+            ordered_keys.append(k)
 
     if not ordered_keys:
         return None
@@ -147,7 +186,12 @@ def process_consensus_for_file(
         for ev_name in evaluator_dirs.keys():
             row_evals[ev_name] = evaluator_data.get(ev_name, {}).get(rkey)
 
-        consensus_rec = compute_row_consensus(rkey, row_evals, fallback_row_idx=idx)
+        consensus_rec = compute_row_consensus(
+            rkey,
+            row_evals,
+            fallback_row_idx=idx,
+            is_empty_output=(rkey in empty_output_keys),
+        )
         consensus_records.append(consensus_rec)
 
         has_quorum = consensus_rec.get("has_quorum", False)
@@ -219,6 +263,13 @@ def main():
         help="Directory to save consensus JSONL files (default: 'evaluations/consensus').",
     )
     parser.add_argument(
+        "--logs-dir",
+        "-l",
+        type=str,
+        default="logs",
+        help="Directory containing base generation logs (default: 'logs').",
+    )
+    parser.add_argument(
         "--file",
         "-f",
         type=str,
@@ -230,6 +281,10 @@ def main():
     eval_root = Path(args.evaluations_dir)
     if not eval_root.is_absolute():
         eval_root = project_root / eval_root
+
+    logs_dir = Path(args.logs_dir)
+    if not logs_dir.is_absolute():
+        logs_dir = project_root / logs_dir
 
     consensus_dir = Path(args.output_dir)
     if not consensus_dir.is_absolute():
@@ -317,7 +372,9 @@ def main():
 
         for fname in filenames_list:
             progress.update(task, description=f"Processing {fname[:35]}...")
-            stats = process_consensus_for_file(fname, evaluator_dirs, consensus_dir)
+            stats = process_consensus_for_file(
+                fname, evaluator_dirs, consensus_dir, logs_dir=logs_dir
+            )
             if not stats:
                 progress.advance(task)
                 continue
