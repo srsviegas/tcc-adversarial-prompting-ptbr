@@ -19,6 +19,7 @@ import {
   faFolderTree,
   faFileLines,
   faTableCells,
+  faCodeCompare,
 } from '@fortawesome/free-solid-svg-icons';
 import { ToggleButtonGroup, ToggleButton } from '@mui/material';
 
@@ -30,6 +31,7 @@ import { InspectionTableView } from './components/InspectionTableView';
 import { InspectionDetailModal } from './components/InspectionDetailModal';
 import { CrossLingualSummaryModal } from './components/CrossLingualSummaryModal';
 import { EvaluationMatrixOverview } from './components/EvaluationMatrixOverview';
+import { ModelComparisonView } from './components/ModelComparisonView';
 
 export default function EvaluationInspectorPage() {
   const {
@@ -48,6 +50,7 @@ export default function EvaluationInspectorPage() {
     selectLogsDirectory,
     selectEvaluationsDirectory,
     loadEvaluationFile,
+    loadEvaluationFilesBatch,
     loadConsensusSummary,
     loadMatrixOverviewData,
     refreshDirectory,
@@ -57,6 +60,7 @@ export default function EvaluationInspectorPage() {
   const [fileStats, setFileStats] = useState(null);
   const [crossLingualModalOpen, setCrossLingualModalOpen] = useState(false);
   const [pageViewMode, setPageViewMode] = useState('matrix');
+  const [selectedCompareMethod, setSelectedCompareMethod] = useState('');
 
   // Filters
   const [filterVerdict, setFilterVerdict] = useState('all');
@@ -233,6 +237,10 @@ export default function EvaluationInspectorPage() {
               <FontAwesomeIcon icon={faTableCells} style={{ fontSize: '0.75rem', marginRight: 6 }} />
               Matrix Overview
             </ToggleButton>
+            <ToggleButton value="compare">
+              <FontAwesomeIcon icon={faCodeCompare} style={{ fontSize: '0.75rem', marginRight: 6 }} />
+              Model Comparison
+            </ToggleButton>
             <ToggleButton value="inspector">
               <FontAwesomeIcon icon={faScaleBalanced} style={{ fontSize: '0.75rem', marginRight: 6 }} />
               Side-by-Side Inspector
@@ -350,6 +358,17 @@ export default function EvaluationInspectorPage() {
               setSelectedFile(fileName);
               setPageViewMode('inspector');
             }}
+            onCompareMethod={(methodId) => {
+              setSelectedCompareMethod(methodId);
+              setPageViewMode('compare');
+            }}
+          />
+        ) : pageViewMode === 'compare' ? (
+          <ModelComparisonView
+            availableFiles={availableFiles}
+            selectedMethodId={selectedCompareMethod}
+            onSelectMethodId={setSelectedCompareMethod}
+            loadEvaluationFilesBatch={loadEvaluationFilesBatch}
           />
         ) : (
           /* Side-by-Side File Inspector View */

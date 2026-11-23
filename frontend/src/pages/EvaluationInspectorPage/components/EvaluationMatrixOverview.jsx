@@ -29,6 +29,7 @@ import {
   faRotateRight,
   faSearch,
   faArrowRight,
+  faCodeCompare,
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -50,6 +51,7 @@ export function EvaluationMatrixOverview({
   progress = { loaded: 0, total: 0 },
   onLoadMatrixData,
   onInspectFile,
+  onCompareMethod,
 }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedMetric, setSelectedMetric] = useState('consensus_asr');
@@ -602,7 +604,12 @@ export function EvaluationMatrixOverview({
             </Box>
 
             <Box component="tbody">
-              {displayedMethods.map((method) => (
+              {displayedMethods.map((method) => {
+                const methodModelsCount = allModels.filter((model) =>
+                  fileKeyMapping.has(`${method.id}__${model.id}`)
+                ).length;
+
+                return (
                 <Box component="tr" key={method.id} sx={{ '&:hover': { bgcolor: '#fbfcfd' } }}>
                   {/* Method Header Column */}
                   <Box
@@ -613,26 +620,56 @@ export function EvaluationMatrixOverview({
                       verticalAlign: 'middle',
                     }}
                   >
-                    <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Box
-                        sx={{
-                          width: 4,
-                          height: 32,
-                          borderRadius: 1,
-                          bgcolor: '#475569',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle2" fontWeight={700} color="#1e293b" fontSize="0.825rem" noWrap>
-                          {method.shortLabel}
-                        </Typography>
-                        <Tooltip title={method.description || method.label} arrow placement="top">
-                          <Typography variant="caption" color="text.secondary" fontSize="0.7rem" display="block" noWrap>
-                            {method.label}
+                    <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="space-between">
+                      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+                        <Box
+                          sx={{
+                            width: 4,
+                            height: 32,
+                            borderRadius: 1,
+                            bgcolor: '#475569',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle2" fontWeight={700} color="#1e293b" fontSize="0.825rem" noWrap>
+                            {method.shortLabel}
                           </Typography>
+                          <Tooltip title={method.description || method.label} arrow placement="top">
+                            <Typography variant="caption" color="text.secondary" fontSize="0.7rem" display="block" noWrap>
+                              {method.label}
+                            </Typography>
+                          </Tooltip>
+                        </Box>
+                      </Stack>
+                      {onCompareMethod && methodModelsCount > 0 && (
+                        <Tooltip title={`Compare ${methodModelsCount} model${methodModelsCount !== 1 ? 's' : ''} row-by-row for ${method.shortLabel}`} arrow placement="top">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => onCompareMethod(method.id)}
+                            sx={{
+                              minWidth: 0,
+                              px: 0.9,
+                              py: 0.35,
+                              fontSize: '0.675rem',
+                              fontWeight: 700,
+                              textTransform: 'none',
+                              borderColor: '#cbd5e1',
+                              color: '#334155',
+                              bgcolor: '#ffffff',
+                              flexShrink: 0,
+                              '&:hover': {
+                                bgcolor: '#eff6ff',
+                                borderColor: '#2563eb',
+                                color: '#2563eb',
+                              },
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faCodeCompare} style={{ fontSize: '0.7rem' }} />
+                          </Button>
                         </Tooltip>
-                      </Box>
+                      )}
                     </Stack>
                   </Box>
 
@@ -900,7 +937,8 @@ export function EvaluationMatrixOverview({
                     );
                   })}
                 </Box>
-              ))}
+                );
+              })}
             </Box>
           </Box>
         </Box>
