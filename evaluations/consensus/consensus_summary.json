@@ -1,33 +1,33 @@
 {
-  "timestamp_utc": "2026-11-22T19:25:45Z",
-  "total_files": 73,
-  "total_rows_evaluated": 120445,
-  "rows_with_quorum_2plus_judges": 120204,
-  "rows_pending_additional_judges": 241,
-  "consensus_dangerous_total": 26490,
-  "consensus_safe_total": 93714,
-  "consensus_asr_percentage": 22.04,
+  "timestamp_utc": "2026-11-16T17:03:37Z",
+  "total_files": 68,
+  "total_rows_evaluated": 121052,
+  "rows_with_quorum_2plus_judges": 113695,
+  "rows_pending_additional_judges": 7357,
+  "consensus_dangerous_total": 24249,
+  "consensus_safe_total": 89446,
+  "consensus_asr_percentage": 21.33,
   "by_language": {
     "pt-BR": {
-      "quorum_rows": 63719,
-      "consensus_dangerous": 14159,
-      "consensus_safe": 49560,
-      "consensus_asr_percentage": 22.22,
+      "quorum_rows": 60391,
+      "consensus_dangerous": 12928,
+      "consensus_safe": 47463,
+      "consensus_asr_percentage": 21.41,
       "evaluators": {
         "llamaguard": {
-          "flagged_dangerous": 24382,
-          "total_evaluated": 63368,
-          "asr_percentage": 38.48
+          "flagged_dangerous": 22894,
+          "total_evaluated": 63708,
+          "asr_percentage": 35.94
         },
         "qwen_judge": {
-          "flagged_dangerous": 10647,
-          "total_evaluated": 59897,
-          "asr_percentage": 17.78
+          "flagged_dangerous": 10065,
+          "total_evaluated": 60241,
+          "asr_percentage": 16.71
         },
         "gemma_judge": {
-          "flagged_dangerous": 14670,
-          "total_evaluated": 52906,
-          "asr_percentage": 27.73
+          "flagged_dangerous": 14200,
+          "total_evaluated": 54246,
+          "asr_percentage": 26.18
         },
         "openai_moderation": {
           "flagged_dangerous": 0,
@@ -37,25 +37,25 @@
       }
     },
     "en": {
-      "quorum_rows": 56485,
-      "consensus_dangerous": 12331,
-      "consensus_safe": 44154,
-      "consensus_asr_percentage": 21.83,
+      "quorum_rows": 53304,
+      "consensus_dangerous": 11321,
+      "consensus_safe": 41983,
+      "consensus_asr_percentage": 21.24,
       "evaluators": {
         "llamaguard": {
-          "flagged_dangerous": 20055,
-          "total_evaluated": 56239,
-          "asr_percentage": 35.66
+          "flagged_dangerous": 18868,
+          "total_evaluated": 56608,
+          "asr_percentage": 33.33
         },
         "qwen_judge": {
-          "flagged_dangerous": 9170,
-          "total_evaluated": 52798,
-          "asr_percentage": 17.37
+          "flagged_dangerous": 8730,
+          "total_evaluated": 53168,
+          "asr_percentage": 16.42
         },
         "gemma_judge": {
-          "flagged_dangerous": 12953,
-          "total_evaluated": 45794,
-          "asr_percentage": 28.29
+          "flagged_dangerous": 12661,
+          "total_evaluated": 47155,
+          "asr_percentage": 26.85
         },
         "openai_moderation": {
           "flagged_dangerous": 0,
@@ -64,23 +64,23 @@
         }
       }
     },
-    "cross_lingual_gap_pt_minus_en": 0.39
+    "cross_lingual_gap_pt_minus_en": 0.17
   },
   "evaluators": {
     "llamaguard": {
-      "flagged_dangerous": 44437,
-      "total_evaluated": 119607,
-      "asr_percentage": 37.15
+      "flagged_dangerous": 41762,
+      "total_evaluated": 120316,
+      "asr_percentage": 34.71
     },
     "qwen_judge": {
-      "flagged_dangerous": 19817,
-      "total_evaluated": 112695,
-      "asr_percentage": 17.58
+      "flagged_dangerous": 18795,
+      "total_evaluated": 113409,
+      "asr_percentage": 16.57
     },
     "gemma_judge": {
-      "flagged_dangerous": 27623,
-      "total_evaluated": 98700,
-      "asr_percentage": 27.99
+      "flagged_dangerous": 26861,
+      "total_evaluated": 101401,
+      "asr_percentage": 26.49
     },
     "openai_moderation": {
       "flagged_dangerous": 0,
@@ -90,15 +90,15 @@
   },
   "inter_evaluator_agreement": {
     "llamaguard vs qwen_judge": {
-      "overlap": 112695,
-      "observed_agreement": 0.725,
-      "cohen_kappa": 0.3534,
+      "overlap": 113409,
+      "observed_agreement": 0.7426,
+      "cohen_kappa": 0.3653,
       "interpretation": "Fair"
     },
     "llamaguard vs gemma_judge": {
-      "overlap": 98700,
-      "observed_agreement": 0.7009,
-      "cohen_kappa": 0.3529,
+      "overlap": 101401,
+      "observed_agreement": 0.717,
+      "cohen_kappa": 0.3679,
       "interpretation": "Fair"
     },
     "llamaguard vs openai_moderation": {
@@ -107,9 +107,9 @@
       "kappa": null
     },
     "qwen_judge vs gemma_judge": {
-      "overlap": 98414,
-      "observed_agreement": 0.8155,
-      "cohen_kappa": 0.4945,
+      "overlap": 101115,
+      "observed_agreement": 0.8264,
+      "cohen_kappa": 0.5053,
       "interpretation": "Moderate"
     },
     "qwen_judge vs openai_moderation": {
